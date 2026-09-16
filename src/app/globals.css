@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-gold: #F59E0B;
+  --color-gold-hover: #FBBF24;
+  --color-cyan: #06B6D4;
+}
+
+:root {
+  /* Default Dark Obsidian Theme ("Feel, not fairway" PRD § 12) */
+  --background: #08090C;
+  --foreground: #F8FAFC;
+  --card: #11141B;
+  --card-foreground: #F8FAFC;
+  --popover: #11141B;
+  --popover-foreground: #F8FAFC;
+  --primary: #F59E0B;
+  --primary-foreground: #08090C;
+  --secondary: #1E2330;
+  --secondary-foreground: #F1F5F9;
+  --muted: #1A1E29;
+  --muted-foreground: #94A3B8;
+  --accent: #19202D;
+  --accent-foreground: #F8FAFC;
+  --destructive: #EF4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #F59E0B;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: clip;
+  }
+}
+
+/* Glassmorphism & Cyber-Philanthropy Utilities */
+.glass-panel {
+  background: rgba(17, 20, 27, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.08);
+}
+
+.glow-gold {
+  box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.3);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.3);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #08090C;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2330;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Sleek Horizontal Navigation Scrollbar */
+.nav-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.05);
+}
+.nav-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.nav-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+.nav-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 9999px;
+}
+.nav-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #F59E0B;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+}
