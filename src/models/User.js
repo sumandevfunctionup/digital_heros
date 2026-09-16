@@ -56,6 +56,10 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    cancelAtPeriodEnd: {
+      type: Boolean,
+      default: false,
+    },
 
     // Charity preference (PRD § 08: minimum 10%, user can voluntarily increase)
     selectedCharityId: {

@@ -15,6 +15,9 @@ import {
   Calendar,
   Target,
   Trophy,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -45,6 +48,12 @@ export default function AdminUsersDirectoryPage() {
   const [editingStatus, setEditingStatus] = useState("active");
   const [editingPlan, setEditingPlan] = useState("monthly");
   const [savingOverrides, setSavingOverrides] = useState(false);
+
+  // Score management state (PRD § 11.01)
+  const [editingScoreItem, setEditingScoreItem] = useState(null);
+  const [scoreEditVal, setScoreEditVal] = useState("");
+  const [courseEditVal, setCourseEditVal] = useState("");
+  const [savingScore, setSavingScore] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -128,6 +137,73 @@ export default function AdminUsersDirectoryPage() {
       toast.error("Network error updating user.");
     } finally {
       setSavingOverrides(false);
+    }
+  };
+
+  const handleUpdateUserScore = async (scoreId) => {
+    const num = Number(scoreEditVal);
+    if (isNaN(num) || num < 1 || num > 45) {
+      toast.error("Stableford score must be between 1 and 45.");
+      return;
+    }
+
+    try {
+      setSavingScore(true);
+      const res = await fetch(`/api/scores/${scoreId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          score: num,
+          courseName: courseEditVal.trim() || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error?.message || "Failed to update score.");
+        return;
+      }
+
+      toast.success("Golfer score updated successfully!");
+      setEditingScoreItem(null);
+      if (selectedUser) {
+        const detailRes = await fetch(`/api/admin/users/${selectedUser._id}`);
+        if (detailRes.ok) {
+          const detailJson = await detailRes.json();
+          if (detailJson.success) setUserDetailData(detailJson.data);
+        }
+      }
+    } catch {
+      toast.error("Network error updating score.");
+    } finally {
+      setSavingScore(false);
+    }
+  };
+
+  const handleDeleteUserScore = async (scoreId) => {
+    if (!confirm("Are you sure you want to delete this score entry?")) return;
+
+    try {
+      const res = await fetch(`/api/scores/${scoreId}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        toast.error(json.error?.message || "Failed to delete score.");
+        return;
+      }
+
+      toast.success("Golfer score deleted successfully.");
+      if (selectedUser) {
+        const detailRes = await fetch(`/api/admin/users/${selectedUser._id}`);
+        if (detailRes.ok) {
+          const detailJson = await detailRes.json();
+          if (detailJson.success) setUserDetailData(detailJson.data);
+        }
+      }
+    } catch {
+      toast.error("Network error deleting score.");
     }
   };
 
@@ -394,6 +470,117 @@ export default function AdminUsersDirectoryPage() {
                   </div>
                 </div>
               ) : null}
+
+              {/* Manage Golfer Stableford Scores (PRD § 11.01) */}
+              {userDetailData?.scores && userDetailData.scores.length > 0 && (
+                <div className="space-y-3 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono uppercase text-cyan-400 font-bold flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5" />
+                      Manage Golfer Scores (PRD § 11.01):
+                    </span>
+                    <span className="text-[10px] font-mono text-white/40">
+                      Stableford 1–45
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {userDetailData.scores.map((sc) => (
+                      <div
+                        key={sc._id}
+                        className="p-2.5 rounded-xl bg-[#121520] border border-white/10 flex items-center justify-between gap-3 text-xs"
+                      >
+                        {editingScoreItem === sc._id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="number"
+                              min="1"
+                              max="45"
+                              value={scoreEditVal}
+                              onChange={(e) => setScoreEditVal(e.target.value)}
+                              className="w-16 bg-[#08090C] border border-amber-500/50 rounded-lg px-2 py-1 text-white font-mono text-xs"
+                            />
+                            <input
+                              type="text"
+                              value={courseEditVal}
+                              onChange={(e) => setCourseEditVal(e.target.value)}
+                              placeholder="Course name"
+                              className="flex-1 bg-[#08090C] border border-white/20 rounded-lg px-2 py-1 text-white text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateUserScore(sc._id)}
+                              disabled={savingScore}
+                              className="p-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black"
+                              title="Save Score"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingScoreItem(null)}
+                              className="p-1 rounded-md bg-white/10 hover:bg-white/20 text-white"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <span className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center font-bold font-mono text-xs">
+                                {sc.score}
+                              </span>
+                              <div>
+                                <span className="font-semibold text-white block leading-tight">
+                                  {sc.courseName || "Round"}
+                                </span>
+                                <span className="text-[10px] text-white/40 font-mono">
+                                  {new Date(sc.date).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                  {sc.isCurrentActive ? (
+                                    <span className="ml-1.5 text-emerald-400 font-bold">
+                                      • Active 5
+                                    </span>
+                                  ) : (
+                                    <span className="ml-1.5 text-white/30">• Archived</span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingScoreItem(sc._id);
+                                  setScoreEditVal(String(sc.score));
+                                  setCourseEditVal(sc.courseName || "");
+                                }}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-amber-400 transition"
+                                title="Edit Score"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUserScore(sc._id)}
+                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
+                                title="Delete Score"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Overrides Form */}
               <form onSubmit={handleSaveOverrides} className="space-y-4 pt-2 border-t border-white/10">

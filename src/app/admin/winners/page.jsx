@@ -57,13 +57,13 @@ export default function AdminWinnersVerificationPage() {
       setLoading(true);
       let url = "/api/admin/winners";
       if (activeTab === "needs_review") {
-        url += "?verificationStatus=proof_submitted";
+        url += "?status=pending_approval";
       } else if (activeTab === "pending_proof") {
-        url += "?verificationStatus=pending_proof";
+        url += "?status=pending_proof";
       } else if (activeTab === "approved") {
-        url += "?verificationStatus=approved";
+        url += "?status=approved";
       } else if (activeTab === "paid") {
-        url += "?payoutStatus=paid";
+        url += "?status=paidout";
       }
 
       const res = await fetch(url);
@@ -271,17 +271,28 @@ export default function AdminWinnersVerificationPage() {
 
                     {/* Tier */}
                     <td className="py-4 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                          win.matchTier === 1
-                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                            : win.matchTier === 2
-                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                            : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                        }`}
-                      >
-                        Tier {win.matchTier}
-                      </span>
+                      {(() => {
+                        const tierNum =
+                          win.matchTier ??
+                          (win.tier === "tier_1_five_match" || win.matchCount === 5
+                            ? 1
+                            : win.tier === "tier_2_four_match" || win.matchCount === 4
+                            ? 2
+                            : 3);
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                              tierNum === 1
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                : tierNum === 2
+                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                            }`}
+                          >
+                            Tier {tierNum} ({tierNum === 1 ? "5-Match" : tierNum === 2 ? "4-Match" : "3-Match"})
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     {/* Prize */}
@@ -303,27 +314,27 @@ export default function AdminWinnersVerificationPage() {
                       </div>
                     </td>
 
-                    {/* Verification Status */}
+                    {/* Winner Status */}
                     <td className="py-4 px-4">
-                      {win.payoutStatus === "paid" ? (
+                      {win.status === "paidout" || win.status === "paid" || win.payoutStatus === "paid" ? (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                           Paid Out
                         </span>
-                      ) : win.verificationStatus === "proof_submitted" ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse">
-                          Under Review
-                        </span>
-                      ) : win.verificationStatus === "approved" ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                          Approved
-                        </span>
-                      ) : win.verificationStatus === "rejected" ? (
+                      ) : win.status === "rejected" || win.verificationStatus === "rejected" ? (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
                           Rejected
                         </span>
+                      ) : win.status === "approved" || win.verificationStatus === "approved" ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          Approved
+                        </span>
+                      ) : win.status === "pending_approval" || win.status === "proof_submitted" || win.verificationStatus === "proof_submitted" ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse">
+                          Pending Approval
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-mono text-white/40 bg-white/5 border border-white/10">
-                          Awaiting Proof
+                          Pending Proof
                         </span>
                       )}
                     </td>
@@ -341,7 +352,7 @@ export default function AdminWinnersVerificationPage() {
                           </Button>
                         )}
 
-                        {win.verificationStatus === "approved" && win.payoutStatus !== "paid" && (
+                        {(win.status === "approved" || (win.verificationStatus === "approved" && win.payoutStatus !== "paid")) && win.status !== "paidout" && win.status !== "paid" && (
                           <Button
                             onClick={() => {
                               setPayingWinner(win);
@@ -419,37 +430,73 @@ export default function AdminWinnersVerificationPage() {
                 </div>
               </div>
 
-              {/* Rejection input */}
-              <div>
-                <label className="block text-xs font-mono text-white/60 mb-1">
-                  REJECTION REASON (if rejecting):
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Points on scorecard do not match entered Stableford score"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  className="bg-[#121520] border-white/15 text-white text-xs"
-                />
-              </div>
+              {/* If already approved or paid: Status is Finalized & Locked */}
+              {inspectingWinner.status === "approved" || inspectingWinner.status === "paidout" || inspectingWinner.status === "paid" || inspectingWinner.verificationStatus === "approved" || inspectingWinner.payoutStatus === "paid" ? (
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>
+                        {inspectingWinner.status === "paidout" || inspectingWinner.status === "paid" || inspectingWinner.payoutStatus === "paid"
+                          ? "Prize Paid Out"
+                          : "Scorecard Verified & Approved"}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                      Status Locked
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/60">
+                    {inspectingWinner.status === "paidout" || inspectingWinner.status === "paid" || inspectingWinner.payoutStatus === "paid"
+                      ? `Disbursed via ${inspectingWinner.payoutMethod || "Direct Bank Wire"} (Ref: ${inspectingWinner.payoutReference || "N/A"}). This record is permanently archived.`
+                      : "Verification is finalized. The winner is eligible for disbursement and the status cannot be reverted."}
+                  </p>
+                </div>
+              ) : (
+                /* Rejection input */
+                <div>
+                  <label className="block text-xs font-mono text-white/60 mb-1">
+                    REJECTION REASON (required if rejecting):
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Points on scorecard do not match entered Stableford score"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="bg-[#121520] border-white/15 text-white text-xs"
+                  />
+                </div>
+              )}
 
               <DialogFooter className="mt-6 flex justify-end gap-2 pt-2 border-t border-white/10">
-                <Button
-                  type="button"
-                  disabled={reviewing}
-                  onClick={() => handleReviewAction("reject")}
-                  className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold"
-                >
-                  Reject Proof
-                </Button>
-                <Button
-                  type="button"
-                  disabled={reviewing}
-                  onClick={() => handleReviewAction("approve")}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold"
-                >
-                  {reviewing ? "Processing..." : "Approve Proof"}
-                </Button>
+                {inspectingWinner.status === "approved" || inspectingWinner.status === "paidout" || inspectingWinner.status === "paid" || inspectingWinner.verificationStatus === "approved" || inspectingWinner.payoutStatus === "paid" ? (
+                  <Button
+                    type="button"
+                    onClick={() => setInspectingWinner(null)}
+                    className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold"
+                  >
+                    Close
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      disabled={reviewing}
+                      onClick={() => handleReviewAction("reject")}
+                      className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold"
+                    >
+                      Reject Proof
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={reviewing}
+                      onClick={() => handleReviewAction("approve")}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold"
+                    >
+                      {reviewing ? "Processing..." : "Approve Proof"}
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             </div>
           )}

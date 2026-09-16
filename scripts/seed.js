@@ -4,15 +4,15 @@ import { fileURLToPath } from "url";
 import path from "path";
 import bcrypt from "bcryptjs";
 
-// Load environment variables from .env.local
+// Load environment variables from .env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI is not set in .env.local");
+  console.error("❌ MONGODB_URI is not set in .env");
   process.exit(1);
 }
 
@@ -241,6 +241,7 @@ async function seed() {
       { score: 38, date: daysAgo(24) },
     ],
     prizeAmount: 937.5,
+    status: "pending",
     verificationStatus: "pending_proof", // Waiting for subscriber screenshot upload
     payoutStatus: "unpaid",
   });

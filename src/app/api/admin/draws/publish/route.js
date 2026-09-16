@@ -35,7 +35,7 @@ export async function POST(request) {
 
     const { drawMonth, algorithmType, drawnNumbers } = parseResult.data;
 
-    // Check if draw for this month is already published
+    // Strict Uniqueness Rule: Each draw month and year (YYYY-MM) must be unique
     const existingPublished = await Draw.findOne({
       drawMonth,
       status: "published",
@@ -47,7 +47,7 @@ export async function POST(request) {
           success: false,
           error: {
             code: "DRAW_ALREADY_PUBLISHED",
-            message: `A draw has already been published for month ${drawMonth}.`,
+            message: `A draw has already been published for month ${drawMonth}. Each draw month/year must be unique.`,
             drawNumber: existingPublished.drawNumber,
           },
         },
@@ -92,7 +92,7 @@ export async function POST(request) {
       publishedAt: new Date(),
     });
 
-    // Create Winner documents in 'pending_proof' state (PRD § 09)
+    // Create Winner documents strictly in 'pending' status and 'unpaid' payoutStatus (PRD § 09)
     const winnerDocsToCreate = finalizedResults.winners.map((w) => ({
       drawId: drawDoc._id,
       userId: w.userId,
@@ -101,6 +101,7 @@ export async function POST(request) {
       matchedNumbers: w.matchedNumbers,
       userSubmittedScores: w.userSubmittedScores,
       prizeAmount: w.prizeAmount,
+      status: "pending",
       verificationStatus: "pending_proof",
       payoutStatus: "unpaid",
     }));

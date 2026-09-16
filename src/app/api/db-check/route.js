@@ -20,7 +20,7 @@ export async function GET() {
         success: false,
         message: "Failed to connect to MongoDB",
         error: error.message,
-        hint: "Ensure your MONGODB_URI in .env.local is correct (e.g. MongoDB Atlas connection string).",
+        hint: "Ensure your MONGODB_URI in .env is correct (e.g. MongoDB Atlas connection string).",
       },
       { status: 500 }
     );

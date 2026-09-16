@@ -160,7 +160,7 @@ export default function DashboardLayout({ children }) {
     },
   ];
 
-  const isSubscribed = user.subscriptionStatus === "active" || user.subscriptionStatus === "yearly";
+  const isSubscribed = user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing";
 
   return (
     <div className="min-h-screen bg-[#08090C] text-white selection:bg-emerald-500/30">

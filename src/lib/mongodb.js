@@ -39,7 +39,7 @@ async function connectDB() {
   }
 
   if (!MONGODB_URI) {
-    const errorMsg = "MONGODB_URI is not defined in .env.local";
+    const errorMsg = "MONGODB_URI is not defined in .env";
     console.error(`\x1b[31m[MongoDB] ❌ ${errorMsg}\x1b[0m`);
     throw new Error(errorMsg);
   }

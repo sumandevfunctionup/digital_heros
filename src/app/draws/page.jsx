@@ -52,8 +52,8 @@ export default function DrawsPublicPage() {
     loadDraws();
   }, []);
 
-  const totalRollover = upcomingDraw?.jackpotRolloverIn || 1500;
-  const estimatedPool = upcomingDraw?.estimatedPool || 2500;
+  const totalRollover = upcomingDraw?.jackpotRolloverIn ?? 1500;
+  const estimatedPool = upcomingDraw?.estimatedTotalPool ?? upcomingDraw?.estimatedPool ?? 2500;
 
   return (
     <div className="min-h-screen bg-[#08090C] text-white py-12 px-4 sm:px-6 lg:px-8">

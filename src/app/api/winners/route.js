@@ -18,11 +18,23 @@ export async function GET(request) {
       .sort({ createdAt: -1 });
 
     const totalWon = winnings
-      .filter((w) => w.verificationStatus === "approved" || w.payoutStatus === "paid")
+      .filter(
+        (w) =>
+          w.status === "approved" ||
+          w.status === "paidout" ||
+          w.status === "paid" ||
+          w.verificationStatus === "approved" ||
+          w.payoutStatus === "paid"
+      )
       .reduce((sum, w) => sum + w.prizeAmount, 0);
 
     const pendingClaimCount = winnings.filter(
-      (w) => w.verificationStatus === "pending_proof" || w.verificationStatus === "rejected"
+      (w) =>
+        w.status === "pending" ||
+        w.status === "pending_proof" ||
+        w.status === "rejected" ||
+        w.verificationStatus === "pending_proof" ||
+        w.verificationStatus === "rejected"
     ).length;
 
     return NextResponse.json({

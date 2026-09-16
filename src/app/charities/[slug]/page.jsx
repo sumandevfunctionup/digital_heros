@@ -45,7 +45,7 @@ export default function CharityDetailPage({ params }) {
     }
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch("/api/auth/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ selectedCharityId: charity._id }),

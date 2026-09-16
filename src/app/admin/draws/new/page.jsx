@@ -17,17 +17,21 @@ import {
   Send,
   HelpCircle,
   Clock,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function AdminDrawSimulatorPage() {
   const router = useRouter();
-  const [drawMonth, setDrawMonth] = useState("2026-12");
+  const now = new Date();
+  const currentCalendarCycle = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  const [drawMonth, setDrawMonth] = useState(currentCalendarCycle);
   const [algorithmType, setAlgorithmType] = useState("random");
   const [simulating, setSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
-  const [publishedMonths, setPublishedMonths] = useState([]);
+  const [publishedDraws, setPublishedDraws] = useState([]);
 
   // Publish state
   const [confirmationPhrase, setConfirmationPhrase] = useState("");
@@ -39,22 +43,33 @@ export default function AdminDrawSimulatorPage() {
         const res = await fetch("/api/draws");
         const json = await res.json();
         if (res.ok && json.success && Array.isArray(json.data?.draws)) {
-          const months = json.data.draws.map((d) => d.drawMonth);
-          setPublishedMonths(months);
+          const draws = json.data.draws;
+          setPublishedDraws(draws);
 
-          // Find first unpublished candidate month
-          const candidates = ["2026-12", "2027-01", "2027-03", "2027-04", "2027-05", "2027-06"];
-          const nextAvailable = candidates.find((m) => !months.includes(m)) || "2026-12";
-          setDrawMonth(nextAvailable);
+          // If current calendar cycle is already published, default to next month
+          const months = draws.map((d) => d.drawMonth);
+          if (months.includes(currentCalendarCycle)) {
+            const [y, m] = currentCalendarCycle.split("-").map(Number);
+            const nextM = m === 12 ? 1 : m + 1;
+            const nextY = m === 12 ? y + 1 : y;
+            const nextCycle = `${nextY}-${String(nextM).padStart(2, "0")}`;
+            setDrawMonth(nextCycle);
+          } else {
+            setDrawMonth(currentCalendarCycle);
+          }
         }
       } catch {
         // Fallback silently if fetch fails
       }
     }
     fetchPublishedDraws();
-  }, []);
+  }, [currentCalendarCycle]);
 
-  const isMonthAlreadyPublished = publishedMonths.includes(drawMonth.trim());
+  const existingDrawForMonth = publishedDraws.find(
+    (d) => d.drawMonth === drawMonth.trim()
+  );
+  const isMonthAlreadyPublished = Boolean(existingDrawForMonth);
+  const isValidMonthFormat = /^\d{4}-\d{2}$/.test(drawMonth.trim());
   const isAuthorized = confirmationPhrase.trim().toUpperCase() === "CONFIRM PUBLISH";
 
   const handleSimulate = async (e) => {
@@ -154,44 +169,67 @@ export default function AdminDrawSimulatorPage() {
                 <label className="block text-xs font-mono text-white/60">
                   DRAW MONTH (YYYY-MM) *
                 </label>
-                {isMonthAlreadyPublished && (
-                  <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                    Already Published
+                {isMonthAlreadyPublished ? (
+                  <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    Already Published (Draw #{existingDrawForMonth?.drawNumber})
+                  </span>
+                ) : isValidMonthFormat ? (
+                  <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Available & Unique
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                    Format: YYYY-MM
                   </span>
                 )}
               </div>
               <Input
                 type="text"
                 pattern="^\d{4}-\d{2}$"
-                placeholder="2026-12"
+                placeholder="YYYY-MM (e.g. 2026-03)"
                 required
                 value={drawMonth}
                 onChange={(e) => setDrawMonth(e.target.value)}
-                className={`bg-[#121520] font-mono ${
+                className={`bg-[#121520] font-mono text-white transition-colors ${
                   isMonthAlreadyPublished
-                    ? "border-amber-500/50 text-amber-300"
-                    : "border-white/15 text-white"
+                    ? "border-amber-500/50 text-amber-300 focus:border-amber-400"
+                    : "border-white/10 focus:border-emerald-500/50"
                 }`}
               />
               {isMonthAlreadyPublished ? (
-                <div className="mt-1.5 flex items-center justify-between text-[10px] text-amber-300/90">
-                  <span>Cycle {drawMonth} is already finalized.</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const candidates = ["2026-12", "2027-01", "2027-03", "2027-04", "2027-05", "2027-06"];
-                      const next = candidates.find((m) => !publishedMonths.includes(m)) || "2026-12";
-                      setDrawMonth(next);
-                    }}
-                    className="underline text-amber-400 hover:text-amber-300 font-mono font-medium ml-1 cursor-pointer"
-                  >
-                    Suggest Next Month
-                  </button>
+                <div className="mt-1.5 text-[10px] text-amber-300/90 leading-relaxed">
+                  Official draw for {drawMonth} has already been conducted as Draw #{existingDrawForMonth?.drawNumber}. Each draw month/year must be unique. Please choose an unpublished month.
                 </div>
               ) : (
-                <span className="text-[10px] text-white/40 mt-1 block">
-                  Target calendar cycle (e.g. 2026-12)
-                </span>
+                <div className="flex flex-wrap items-center justify-between gap-1 mt-1.5">
+                  <span className="text-[10px] text-white/50">
+                    Manual entry allowed. Each draw month & year must be unique.
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {["2026-02", "2026-03", "2026-04", "2026-05"].map((m) => {
+                      const isTaken = publishedDraws.some((d) => d.drawMonth === m);
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setDrawMonth(m)}
+                          className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+                            drawMonth === m
+                              ? "bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold"
+                              : isTaken
+                              ? "bg-white/5 border-white/5 text-white/30 line-through"
+                              : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:border-white/30"
+                          }`}
+                          title={isTaken ? `${m} (Already Published)` : `Quick select ${m}`}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -413,71 +451,95 @@ export default function AdminDrawSimulatorPage() {
           </div>
 
           {/* Safety Confirm & Official Publish Form */}
-          <div className="p-6 rounded-2xl bg-[#0B0D13] border border-amber-500/40 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-amber-400">
-                <ShieldAlert className="w-5 h-5 shrink-0" />
-                <h4 className="text-sm font-bold text-white">
-                  Official Draw Publishing Authorization
-                </h4>
-              </div>
-              {isAuthorized ? (
-                <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 w-fit">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  Authorization Verified
+          {isMonthAlreadyPublished ? (
+            <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                  <Lock className="w-5 h-5 shrink-0" />
+                  <span>Month Already Finalized ({drawMonth})</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                  Draw #{existingDrawForMonth?.drawNumber || "100"} (Published)
                 </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmationPhrase("CONFIRM PUBLISH")}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-mono text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all cursor-pointer w-fit"
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed">
+                An official draw for cycle <strong>{drawMonth}</strong> (Draw #{existingDrawForMonth?.drawNumber || "100"}) has already been conducted and published to the public ledger. Each draw month and year must be unique. To conduct a new official draw, simply select or type a different, unpublished month above.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-white/10">
+                <Link
+                  href="/draws"
+                  className="text-xs font-semibold text-amber-400 hover:text-amber-300 underline font-mono flex items-center gap-1"
                 >
-                  ⚡ Auto-Fill "CONFIRM PUBLISH"
-                </button>
-              )}
+                  View Published Draw on Public Ledger
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link
+                  href="/admin/winners"
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 underline font-mono flex items-center gap-1"
+                >
+                  Review & Verify Winners Queue
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
-            <p className="text-xs text-white/60 leading-relaxed">
-              Publishing will write an immutable record to the official Draw ledger, instantiate verified Winner claim documents in the database, and announce the winning numbers publicly.
-            </p>
-
-            {isMonthAlreadyPublished && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2 text-xs text-red-300">
-                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                <span>
-                  <strong>Cannot Publish:</strong> Month <strong>{drawMonth}</strong> has already been published. Please change the Draw Month above to an unpublished cycle before publishing.
-                </span>
+          ) : (
+            <div className="p-6 rounded-2xl bg-[#0B0D13] border border-amber-500/40 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <ShieldAlert className="w-5 h-5 shrink-0" />
+                  <h4 className="text-sm font-bold text-white">
+                    Official Draw Publishing Authorization
+                  </h4>
+                </div>
+                {isAuthorized ? (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 w-fit">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    Authorization Verified
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmationPhrase("CONFIRM PUBLISH")}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-mono text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all cursor-pointer w-fit"
+                  >
+                    ⚡ Auto-Fill "CONFIRM PUBLISH"
+                  </button>
+                )}
               </div>
-            )}
+              <p className="text-xs text-white/60 leading-relaxed">
+                Publishing will write an immutable record to the official Draw ledger, instantiate verified Winner claim documents in the database, and announce the winning numbers publicly. Once published, this month's draw cannot be repeated.
+              </p>
 
-            <form onSubmit={handlePublish} className="flex flex-col sm:flex-row gap-3 pt-2">
-              <div className="flex-1">
-                <Input
-                  type="text"
-                  placeholder="Type 'CONFIRM PUBLISH' to authorize"
-                  required
-                  value={confirmationPhrase}
-                  onChange={(e) => setConfirmationPhrase(e.target.value.toUpperCase())}
-                  className={`bg-[#121520] font-mono text-xs uppercase tracking-wider transition-colors ${
+              <form onSubmit={handlePublish} className="flex flex-col sm:flex-row gap-3 pt-2">
+                <div className="flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Type 'CONFIRM PUBLISH' to authorize"
+                    required
+                    value={confirmationPhrase}
+                    onChange={(e) => setConfirmationPhrase(e.target.value.toUpperCase())}
+                    className={`bg-[#121520] font-mono text-xs uppercase tracking-wider transition-colors ${
+                      isAuthorized
+                        ? "border-emerald-500/60 text-emerald-300 bg-emerald-950/20"
+                        : "border-white/20 text-white"
+                    }`}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={publishing || !isAuthorized}
+                  className={`font-bold text-xs px-6 py-2.5 rounded-xl transition-all whitespace-nowrap ${
                     isAuthorized
-                      ? "border-emerald-500/60 text-emerald-300 bg-emerald-950/20"
-                      : "border-white/20 text-white"
+                      ? "bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/25 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                      : "bg-white/10 text-white/40 cursor-not-allowed border border-white/5"
                   }`}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={publishing || !isAuthorized || isMonthAlreadyPublished}
-                className={`font-bold text-xs px-6 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-                  isAuthorized && !isMonthAlreadyPublished
-                    ? "bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/25 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                    : "bg-white/10 text-white/40 cursor-not-allowed border border-white/5"
-                }`}
-              >
-                {publishing ? "Publishing Official Draw..." : "Publish Official Draw"}
-              </Button>
-            </form>
-          </div>
+                >
+                  {publishing ? "Publishing Official Draw..." : "Publish Official Draw"}
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -49,19 +49,48 @@ export async function PATCH(request, context) {
       );
     }
 
-    if (winner.verificationStatus !== "approved") {
+    // Strict Guard: Verification MUST be approved. If verification failed (rejected) or incomplete, DO NOT payout!
+    if (winner.status === "rejected" || winner.verificationStatus === "rejected") {
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: "UNAPPROVED_WINNER",
-            message: `Cannot execute payout for a prize in '${winner.verificationStatus}' status. Proof must be approved first.`,
+            code: "VERIFICATION_FAILED",
+            message: "Verification failed (rejected). Payout is strictly prohibited for rejected claims.",
           },
         },
         { status: 400 }
       );
     }
 
+    if (winner.status !== "approved" && winner.verificationStatus !== "approved") {
+      const currentStat = winner.status || winner.verificationStatus;
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "UNAPPROVED_WINNER",
+            message: `Scorecard proof is '${currentStat}'. Payout is strictly prohibited unless verification status is 'approved'.`,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    if (winner.status === "paidout" || winner.status === "paid" || winner.payoutStatus === "paid") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "ALREADY_PAID",
+            message: "This prize has already been paid out and finalized.",
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    winner.status = "paidout";
     winner.payoutStatus = "paid";
     winner.payoutMethod = payoutMethod;
     winner.payoutReference = payoutReference;

@@ -38,6 +38,30 @@ const WinnerSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Unified Winner Status Lifecycle:
+    // - "pending": Initial state when created upon draw publishing (awaiting proof)
+    // - "pending_proof": Alias for pending
+    // - "pending_approval": Proof submitted, awaiting admin review ("pending approve")
+    // - "proof_submitted": Alias for pending_approval
+    // - "rejected": Scorecard proof rejected by admin with reason
+    // - "approved": Scorecard verified & approved; eligible for payout (locked)
+    // - "paidout": Prize payout executed and permanently finalized
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "pending_proof",
+        "pending_approval",
+        "proof_submitted",
+        "rejected",
+        "approved",
+        "paidout",
+        "paid",
+      ],
+      default: "pending",
+      index: true,
+    },
+
     // Winner Verification Lifecycle (PRD § 09)
     verificationStatus: {
       type: String,
@@ -92,4 +116,72 @@ const WinnerSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.models.Winner || mongoose.model("Winner", WinnerSchema);
+WinnerSchema.pre("save", function () {
+  // When a winner is first created, it MUST strictly start as status: "pending" and payoutStatus: "unpaid"
+  // Never initialize a new winner as "paid", "paidout", or "approved"
+  if (this.isNew) {
+    this.status = "pending";
+    this.verificationStatus = "pending_proof";
+    this.payoutStatus = "unpaid";
+    this.paidAt = null;
+    this.payoutReference = null;
+    this.payoutMethod = null;
+    return;
+  }
+
+  // Synchronize unified status with legacy fields for full backwards-compatibility
+  if (this.isModified("status")) {
+    if (this.status === "paidout" || this.status === "paid") {
+      this.status = "paidout";
+      this.verificationStatus = "approved";
+      this.payoutStatus = "paid";
+    } else if (this.status === "approved") {
+      this.verificationStatus = "approved";
+      this.payoutStatus = "unpaid";
+    } else if (this.status === "rejected") {
+      this.verificationStatus = "rejected";
+      this.payoutStatus = "unpaid";
+    } else if (this.status === "pending_approval" || this.status === "proof_submitted") {
+      this.status = "pending_approval";
+      this.verificationStatus = "proof_submitted";
+      this.payoutStatus = "unpaid";
+    } else {
+      this.status = "pending";
+      this.verificationStatus = "pending_proof";
+      this.payoutStatus = "unpaid";
+    }
+  } else if (this.isModified("verificationStatus") || this.isModified("payoutStatus")) {
+    if (this.payoutStatus === "paid") {
+      this.status = "paidout";
+    } else if (this.verificationStatus === "rejected") {
+      this.status = "rejected";
+    } else if (this.verificationStatus === "approved") {
+      this.status = "approved";
+    } else if (this.verificationStatus === "proof_submitted") {
+      this.status = "pending_approval";
+    } else {
+      this.status = "pending";
+    }
+  }
+});
+
+WinnerSchema.pre("insertMany", function (next, docs) {
+  if (Array.isArray(docs)) {
+    docs.forEach((doc) => {
+      // Force newly created winners to status: "pending" and payoutStatus: "unpaid"
+      doc.status = "pending";
+      doc.verificationStatus = "pending_proof";
+      doc.payoutStatus = "unpaid";
+      doc.paidAt = null;
+      doc.payoutReference = null;
+      doc.payoutMethod = null;
+    });
+  }
+  if (typeof next === "function") next();
+});
+
+if (mongoose.models?.Winner) {
+  delete mongoose.models.Winner;
+}
+
+export default mongoose.model("Winner", WinnerSchema);

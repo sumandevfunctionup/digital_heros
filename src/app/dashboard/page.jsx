@@ -79,7 +79,7 @@ export default function DashboardOverviewPage() {
   }, []);
 
   const isSubscribed =
-    user?.subscriptionStatus === "active" || user?.subscriptionStatus === "yearly";
+    user?.subscriptionStatus === "active" || user?.subscriptionStatus === "trialing";
 
   return (
     <div className="space-y-8">

@@ -14,12 +14,34 @@ export async function GET(request) {
     if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
     const verificationStatus = searchParams.get("verificationStatus");
     const payoutStatus = searchParams.get("payoutStatus");
 
     const query = {};
-    if (verificationStatus) query.verificationStatus = verificationStatus;
-    if (payoutStatus) query.payoutStatus = payoutStatus;
+    if (status) {
+      if (status === "pending_approval" || status === "proof_submitted") {
+        query.$or = [{ status: "pending_approval" }, { status: "proof_submitted" }, { verificationStatus: "proof_submitted" }];
+      } else if (status === "paidout" || status === "paid") {
+        query.$or = [{ status: "paidout" }, { status: "paid" }, { payoutStatus: "paid" }];
+      } else if (status === "approved") {
+        query.$or = [
+          { status: "approved" },
+          { verificationStatus: "approved", payoutStatus: { $ne: "paid" } },
+        ];
+      } else {
+        query.status = status;
+      }
+    } else {
+      if (verificationStatus) query.verificationStatus = verificationStatus;
+      if (payoutStatus) {
+        if (payoutStatus === "unpaid") {
+          query.payoutStatus = { $ne: "paid" };
+        } else {
+          query.payoutStatus = payoutStatus;
+        }
+      }
+    }
 
     const winners = await Winner.find(query)
       .populate("userId", "firstName lastName email homeClub handicapIndex subscriptionStatus")
@@ -28,11 +50,27 @@ export async function GET(request) {
       .sort({ createdAt: -1 });
 
     const counts = {
-      pending_proof: await Winner.countDocuments({ verificationStatus: "pending_proof" }),
-      proof_submitted: await Winner.countDocuments({ verificationStatus: "proof_submitted" }),
-      approved: await Winner.countDocuments({ verificationStatus: "approved" }),
-      rejected: await Winner.countDocuments({ verificationStatus: "rejected" }),
-      paid: await Winner.countDocuments({ payoutStatus: "paid" }),
+      pending_proof: await Winner.countDocuments({
+        $or: [{ status: "pending_proof" }, { verificationStatus: "pending_proof", payoutStatus: { $ne: "paid" } }],
+      }),
+      proof_submitted: await Winner.countDocuments({
+        $or: [{ status: "pending_approval" }, { status: "proof_submitted" }, { verificationStatus: "proof_submitted" }],
+      }),
+      pending_approval: await Winner.countDocuments({
+        $or: [{ status: "pending_approval" }, { status: "proof_submitted" }, { verificationStatus: "proof_submitted" }],
+      }),
+      approved: await Winner.countDocuments({
+        $or: [{ status: "approved" }, { verificationStatus: "approved", payoutStatus: { $ne: "paid" } }],
+      }),
+      rejected: await Winner.countDocuments({
+        $or: [{ status: "rejected" }, { verificationStatus: "rejected" }],
+      }),
+      paid: await Winner.countDocuments({
+        $or: [{ status: "paidout" }, { status: "paid" }, { payoutStatus: "paid" }],
+      }),
+      paidout: await Winner.countDocuments({
+        $or: [{ status: "paidout" }, { status: "paid" }, { payoutStatus: "paid" }],
+      }),
     };
 
     return NextResponse.json({

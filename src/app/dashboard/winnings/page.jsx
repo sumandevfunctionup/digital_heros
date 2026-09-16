@@ -96,7 +96,19 @@ export default function WinningsDashboardPage() {
     }
   };
 
-  const getTierBadge = (tier) => {
+  const getTierBadge = (winOrTier) => {
+    const tier =
+      typeof winOrTier === "number"
+        ? winOrTier
+        : winOrTier?.matchTier ??
+          (winOrTier?.tier === "tier_1_five_match" || winOrTier?.matchCount === 5
+            ? 1
+            : winOrTier?.tier === "tier_2_four_match" || winOrTier?.matchCount === 4
+            ? 2
+            : winOrTier?.tier === "tier_3_three_match" || winOrTier?.matchCount === 3
+            ? 3
+            : null);
+
     switch (tier) {
       case 1:
         return (
@@ -122,8 +134,22 @@ export default function WinningsDashboardPage() {
     }
   };
 
-  const getStatusBadge = (verificationStatus, payoutStatus) => {
-    if (payoutStatus === "paid") {
+  const getStatusBadge = (winOrStatus, payoutStatus) => {
+    const status =
+      typeof winOrStatus === "object"
+        ? winOrStatus.status ||
+          (winOrStatus.payoutStatus === "paid"
+            ? "paidout"
+            : winOrStatus.verificationStatus)
+        : winOrStatus;
+
+    const isPaid =
+      status === "paidout" ||
+      status === "paid" ||
+      payoutStatus === "paid" ||
+      winOrStatus?.payoutStatus === "paid";
+
+    if (isPaid) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
           <CheckCircle2 className="w-3 h-3 text-emerald-400" />
@@ -132,7 +158,7 @@ export default function WinningsDashboardPage() {
       );
     }
 
-    switch (verificationStatus) {
+    switch (status) {
       case "pending_proof":
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
@@ -140,11 +166,12 @@ export default function WinningsDashboardPage() {
             Proof Required
           </span>
         );
+      case "pending_approval":
       case "proof_submitted":
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
             <Clock className="w-3 h-3 text-cyan-400" />
-            Under Review
+            Under Review (Pending Approve)
           </span>
         );
       case "approved":
@@ -250,6 +277,8 @@ export default function WinningsDashboardPage() {
               <tbody className="divide-y divide-white/5">
                 {winnings.map((win) => {
                   const needsProof =
+                    win.status === "pending_proof" ||
+                    win.status === "rejected" ||
                     win.verificationStatus === "pending_proof" ||
                     win.verificationStatus === "rejected";
 
@@ -264,7 +293,7 @@ export default function WinningsDashboardPage() {
                         </div>
                       </td>
 
-                      <td className="py-4 px-4">{getTierBadge(win.matchTier)}</td>
+                      <td className="py-4 px-4">{getTierBadge(win)}</td>
 
                       <td className="py-4 px-4 font-mono text-base font-bold text-emerald-400">
                         ${win.prizeAmount?.toLocaleString()}

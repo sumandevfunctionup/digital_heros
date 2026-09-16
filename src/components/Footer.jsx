@@ -39,6 +39,11 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
+                <Link href="/pricing" className="hover:text-white transition">
+                  Membership & Pricing
+                </Link>
+              </li>
+              <li>
                 <Link href="/charities" className="hover:text-white transition">
                   Charity Directory
                 </Link>
@@ -96,10 +101,26 @@ export default function Footer() {
               Regulations
             </h4>
             <ul className="space-y-2.5 text-sm">
-              <li className="text-slate-500">Stableford 1-45 Rules</li>
-              <li className="text-slate-500">40/35/25 Rollover Terms</li>
-              <li className="text-slate-500">Charity Transparency</li>
-              <li className="text-slate-500">Responsible Gaming</li>
+              <li>
+                <Link href="/terms#stableford" className="hover:text-white transition">
+                  Stableford 1–45 Rules
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms#rollover" className="hover:text-white transition">
+                  40/35/25 Rollover Terms
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms#charity" className="hover:text-white transition">
+                  Charity Transparency
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms#gaming" className="hover:text-white transition">
+                  Responsible Gaming
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

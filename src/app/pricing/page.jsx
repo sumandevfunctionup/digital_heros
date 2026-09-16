@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import StripePaymentModal from "@/components/StripePaymentModal";
 import {
   Check,
   ShieldCheck,
@@ -13,7 +14,6 @@ import {
   Trophy,
   Sparkles,
   ArrowRight,
-  HelpCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -21,44 +21,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
 export default function PricingPage() {
-  const { user, login } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [billingCycle, setBillingCycle] = useState("monthly"); // "monthly" | "yearly"
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
+  const [isStripeModalOpen, setIsStripeModalOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState("monthly");
+  const isSubscribed =
+    user?.subscriptionStatus === "active" || user?.subscriptionStatus === "trialing";
 
   const handleCheckout = async (planType) => {
-    try {
-      setLoadingPlan(planType);
-
-      // If user is not logged in, offer quick sign-in or redirect to register
-      if (!user) {
-        toast.info("Please sign in or create an account to start your subscription.");
-        router.push(`/register?plan=${planType}`);
-        return;
-      }
-
-      const res = await fetch("/api/subscriptions/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: planType,
-          billingInterval: planType === "monthly" ? "month" : "year",
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast.success(`Success! Your ${planType} subscription is now active.`);
-        router.push("/dashboard");
-      } else {
-        toast.error(data.error?.message || "Failed to initiate subscription checkout.");
-      }
-    } catch {
-      toast.error("An error occurred during checkout. Please try again.");
-    } finally {
-      setLoadingPlan(null);
+    // If user is not logged in, redirect to register with selected plan
+    if (!user) {
+      toast.info("Please sign in or create an account to start your subscription.");
+      router.push(`/register?plan=${planType}`);
+      return;
     }
+
+    if (isSubscribed && user?.subscriptionPlan === planType && !user?.cancelAtPeriodEnd) {
+      toast.info(`You are already active on the ${planType.toUpperCase()} plan!`);
+      return;
+    }
+
+    // Open Interactive Stripe Payment Gateway Modal
+    setCheckoutPlan(planType);
+    setIsStripeModalOpen(true);
   };
 
   const faqs = [
@@ -189,10 +177,20 @@ export default function PricingPage() {
             <CardFooter className="p-8 pt-0">
               <Button
                 onClick={() => handleCheckout("monthly")}
-                disabled={loadingPlan === "monthly"}
-                className="w-full py-6 rounded-2xl font-bold text-sm bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all shadow-md"
+                disabled={loadingPlan === "monthly" || (isSubscribed && user?.subscriptionPlan === "monthly" && !user?.cancelAtPeriodEnd)}
+                className={`w-full py-6 rounded-2xl font-bold text-sm transition-all shadow-md ${
+                  isSubscribed && user?.subscriptionPlan === "monthly" && !user?.cancelAtPeriodEnd
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default"
+                    : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                }`}
               >
-                {loadingPlan === "monthly" ? "Processing..." : "Select Monthly Plan"}
+                {loadingPlan === "monthly"
+                  ? "Processing..."
+                  : isSubscribed && user?.subscriptionPlan === "monthly" && !user?.cancelAtPeriodEnd
+                  ? "Current Active Plan ✓"
+                  : isSubscribed && user?.subscriptionPlan === "yearly"
+                  ? "Switch to Monthly Plan"
+                  : "Select Monthly Plan"}
               </Button>
             </CardFooter>
           </Card>
@@ -261,11 +259,23 @@ export default function PricingPage() {
             <CardFooter className="p-8 pt-0">
               <Button
                 onClick={() => handleCheckout("yearly")}
-                disabled={loadingPlan === "yearly"}
-                className="w-full py-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black border-none transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
+                disabled={loadingPlan === "yearly" || (isSubscribed && user?.subscriptionPlan === "yearly" && !user?.cancelAtPeriodEnd)}
+                className={`w-full py-6 rounded-2xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
+                  isSubscribed && user?.subscriptionPlan === "yearly" && !user?.cancelAtPeriodEnd
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default"
+                    : "bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black border-none shadow-amber-500/25 cursor-pointer"
+                }`}
               >
-                {loadingPlan === "yearly" ? "Processing..." : "Join as Annual Supporter"}
-                <ArrowRight className="w-4 h-4" />
+                {loadingPlan === "yearly"
+                  ? "Processing..."
+                  : isSubscribed && user?.subscriptionPlan === "yearly" && !user?.cancelAtPeriodEnd
+                  ? "Current Active Plan ✓"
+                  : isSubscribed && user?.subscriptionPlan === "monthly"
+                  ? "Upgrade to Annual Plan (Save 17%)"
+                  : "Join as Annual Supporter"}
+                {(!isSubscribed || user?.subscriptionPlan !== "yearly" || user?.cancelAtPeriodEnd) && (
+                  <ArrowRight className="w-4 h-4" />
+                )}
               </Button>
             </CardFooter>
           </Card>
@@ -347,6 +357,17 @@ export default function PricingPage() {
           })}
         </div>
       </section>
+
+      {/* Interactive Stripe Payment Gateway Modal */}
+      <StripePaymentModal
+        isOpen={isStripeModalOpen}
+        onClose={() => setIsStripeModalOpen(false)}
+        plan={checkoutPlan}
+        user={user}
+        onSuccess={() => {
+          router.push("/dashboard");
+        }}
+      />
     </div>
   );
 }

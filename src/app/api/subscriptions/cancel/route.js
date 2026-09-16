@@ -15,7 +15,7 @@ export async function POST(request) {
     if (errorResponse) return errorResponse;
 
     // Check if user has an active subscription
-    if (user.subscriptionStatus !== "active" && user.subscriptionStatus !== "yearly") {
+    if (user.subscriptionStatus !== "active" && user.subscriptionStatus !== "trialing" && user.subscriptionStatus !== "yearly") {
       return NextResponse.json(
         {
           success: false,

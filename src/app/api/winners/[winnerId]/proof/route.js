@@ -61,7 +61,22 @@ export async function POST(request, context) {
       );
     }
 
+    // Once approved or paidout, proof is finalized and immutable
+    if (winner.status === "approved" || winner.status === "paidout" || winner.verificationStatus === "approved" || winner.payoutStatus === "paid") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "ALREADY_APPROVED",
+            message: "This prize has already been verified and approved. Scorecard proof is finalized and cannot be modified.",
+          },
+        },
+        { status: 400 }
+      );
+    }
+
     winner.proofScreenshotUrl = parseResult.data.proofScreenshotUrl;
+    winner.status = "pending_approval";
     winner.verificationStatus = "proof_submitted";
     winner.proofSubmittedAt = new Date();
     winner.rejectionReason = null; // Clear previous rejection if re-submitting

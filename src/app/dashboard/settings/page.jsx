@@ -13,9 +13,20 @@ import {
   Zap,
   ArrowRight,
   Shield,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import StripePaymentModal from "@/components/StripePaymentModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function SettingsDashboardPage() {
   const { user, refreshUser } = useAuth();
@@ -25,6 +36,10 @@ export default function SettingsDashboardPage() {
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [upgradingPlan, setUpgradingPlan] = useState(null);
+  const [canceling, setCanceling] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [targetPlan, setTargetPlan] = useState("monthly");
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -59,32 +74,38 @@ export default function SettingsDashboardPage() {
     }
   };
 
-  const handleSubscribe = async (plan) => {
+  const handleSubscribe = (plan) => {
+    if (user?.subscriptionPlan === plan && isSubscribed) {
+      toast.info(`You are already active on the ${plan.toUpperCase()} plan.`);
+      return;
+    }
+    setTargetPlan(plan);
+    setStripeModalOpen(true);
+  };
+
+  const handleCancelSubscription = async () => {
     try {
-      setUpgradingPlan(plan);
-      const res = await fetch("/api/subscriptions/checkout", {
+      setCanceling(true);
+      const res = await fetch("/api/subscriptions/cancel", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
       });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        toast.error(json.error?.message || "Failed to activate subscription.");
-        return;
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.data?.message || "Subscription scheduled for cancellation.");
+        setShowCancelDialog(false);
+        await refreshUser();
+      } else {
+        toast.error(data.error?.message || "Failed to cancel subscription.");
       }
-
-      toast.success(json.message || `Subscribed to ${plan.toUpperCase()} plan!`);
-      await refreshUser();
     } catch {
-      toast.error("Network error activating subscription.");
+      toast.error("Network error cancelling subscription.");
     } finally {
-      setUpgradingPlan(null);
+      setCanceling(false);
     }
   };
 
   const isSubscribed =
-    user?.subscriptionStatus === "active" || user?.subscriptionStatus === "yearly";
+    user?.subscriptionStatus === "active" || user?.subscriptionStatus === "trialing";
 
   return (
     <div className="space-y-10">
@@ -255,6 +276,48 @@ export default function SettingsDashboardPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Cancellation Status & Actions (PRD § 04) */}
+              {isSubscribed && (
+                <div className="mt-6 pt-4 border-t border-white/10">
+                  {user?.cancelAtPeriodEnd || user?.subscriptionStatus === "canceled" ? (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-300">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                      <div>
+                        <span className="font-bold block">Cancellation Scheduled</span>
+                        <span className="text-white/60 text-[11px]">
+                          Your subscription will conclude at the end of your billing cycle on{" "}
+                          {user?.subscriptionRenewalDate
+                            ? new Date(user.subscriptionRenewalDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            : "the renewal date"}
+                          . You retain full draw eligibility until then.
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-white block">Cancel Membership</span>
+                        <span className="text-[11px] text-white/40 block">
+                          Stops renewal at period end. Scores remain archived.
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowCancelDialog(true)}
+                        className="border-rose-500/30 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 text-xs px-3 py-1.5 rounded-xl transition"
+                      >
+                        Cancel Plan
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-white/40">
@@ -265,6 +328,52 @@ export default function SettingsDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Cancellation Confirmation Dialog */}
+        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <DialogContent className="bg-[#0F1118] border-white/15 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-rose-400" />
+                Cancel digital.HEROES Membership
+              </DialogTitle>
+              <DialogDescription className="text-xs text-white/60 pt-2 leading-relaxed">
+                Are you sure you want to cancel your subscription?
+                <br /><br />
+                • You will continue to have full access and participate in monthly draws until{" "}
+                <strong className="text-white">
+                  {user?.subscriptionRenewalDate
+                    ? new Date(user.subscriptionRenewalDate).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "the end of your current cycle"}
+                </strong>.
+                <br />
+                • Your 5 active scores will remain securely saved in your profile.
+                <br />
+                • You can reactivate at any time without losing historical data.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-white/10">
+              <Button
+                variant="outline"
+                onClick={() => setShowCancelDialog(false)}
+                className="border-white/15 text-white hover:bg-white/10 text-xs"
+              >
+                Keep My Membership
+              </Button>
+              <Button
+                onClick={handleCancelSubscription}
+                disabled={canceling}
+                className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs"
+              >
+                {canceling ? "Processing..." : "Confirm Cancellation"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* 2. Golfer Profile Form */}
         <div className="rounded-3xl border border-white/10 bg-[#0F1118]/80 p-6 sm:p-8 backdrop-blur-xl relative flex flex-col justify-between">
@@ -345,6 +454,17 @@ export default function SettingsDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Stripe Payment Gateway Modal */}
+      <StripePaymentModal
+        isOpen={stripeModalOpen}
+        onClose={() => setStripeModalOpen(false)}
+        plan={targetPlan}
+        user={user}
+        onSuccess={async () => {
+          await refreshUser();
+        }}
+      />
     </div>
   );
 }

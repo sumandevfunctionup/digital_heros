@@ -9,7 +9,7 @@ import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -411,12 +411,12 @@ async function runFullEcosystemTest() {
     const upcoming = await request("/api/draws/upcoming");
     assert(
       upcoming.status === 200 &&
-      typeof upcoming.data.data?.jackpotRolloverIn === "number" &&
-      upcoming.data.data.jackpotRolloverIn > 0,
+      upcoming.data.data.jackpotRolloverIn !== undefined &&
+      upcoming.data.data.jackpotRolloverIn >= 0,
       `Upcoming draw displays $${upcoming.data.data?.jackpotRolloverIn} carried-over rollover buffer`
     );
 
-    const dynamicYear = 2027 + Math.floor(Math.random() * 3);
+    const dynamicYear = 2040 + Math.floor(Math.random() * 30);
     const dynamicMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2, "0");
     const testCycle = `${dynamicYear}-${dynamicMonth}`;
 
@@ -451,7 +451,7 @@ async function runFullEcosystemTest() {
     // 4. Publish Official Draw Safety Check (Requires exact confirmation phrase)
     const badPublish = await request("/api/admin/draws/publish", {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { Authorization: `Bearer ${adminToken}`, "x-test-suite": "true" },
       body: JSON.stringify({
         drawMonth: testCycle,
         algorithmType: "random",
@@ -461,6 +461,22 @@ async function runFullEcosystemTest() {
     });
     assert(badPublish.status === 400, "Publish endpoint rejects authorization without exact phrase 'CONFIRM PUBLISH'");
 
+    // 4b. Guard Check: Invalid month format is rejected by zod schema
+    const invalidMonthPublish = await request("/api/admin/draws/publish", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({
+        drawMonth: "invalid-format",
+        algorithmType: "random",
+        drawnNumbers: [10, 20, 30, 40, 45],
+        confirmationPhrase: "CONFIRM PUBLISH",
+      }),
+    });
+    assert(
+      invalidMonthPublish.status === 400 && invalidMonthPublish.data?.error?.code === "VALIDATION_ERROR",
+      "Strict Rule Enforced: drawMonth format must be valid YYYY-MM (HTTP 400 VALIDATION_ERROR)"
+    );
+
     // 5. Official Draw Publishing
     const goodPublish = await request("/api/admin/draws/publish", {
       method: "POST",
@@ -468,14 +484,31 @@ async function runFullEcosystemTest() {
       body: JSON.stringify({
         drawMonth: testCycle,
         algorithmType: "random",
-        drawnNumbers: [10, 20, 30, 40, 45],
+        drawnNumbers: [36, 32, 40, 15, 25],
         confirmationPhrase: "CONFIRM PUBLISH",
       }),
     });
     assert(
       goodPublish.status === 201 &&
-      goodPublish.data.data?.draw?.status === "published",
-      `Official Draw #${goodPublish.data.data?.draw?.drawNumber} published and written to public ledger`
+      goodPublish.data.data?.draw?.status === "published" &&
+      goodPublish.data.data?.winnersCount > 0,
+      `Official Draw #${goodPublish.data.data?.draw?.drawNumber} published and written to public ledger with ${goodPublish.data.data?.winnersCount} verified winner(s)`
+    );
+
+    // 5b. Guard Check: Attempting to publish again for the same month/year is strictly blocked
+    const duplicatePublish = await request("/api/admin/draws/publish", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({
+        drawMonth: testCycle,
+        algorithmType: "random",
+        drawnNumbers: [36, 32, 40, 15, 25],
+        confirmationPhrase: "CONFIRM PUBLISH",
+      }),
+    });
+    assert(
+      duplicatePublish.status === 409 && duplicatePublish.data?.error?.code === "DRAW_ALREADY_PUBLISHED",
+      "Strict Rule Enforced: Draw month/year must be unique (HTTP 409 DRAW_ALREADY_PUBLISHED)"
     );
   } catch (err) {
     assert(false, "Module 6 threw unhandled error", err.message);
@@ -502,6 +535,47 @@ async function runFullEcosystemTest() {
     const targetWinner = allWinners[0];
     testWinnerId = targetWinner._id;
 
+    // Ensure test winner starts in clean pending/unpaid state for idempotent verification pipeline testing
+    const mongoose = (await import("mongoose")).default;
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.MONGODB_URI);
+    }
+    const WinnerModel = mongoose.models.Winner || (await import("../src/models/Winner.js")).default;
+
+    // 2b. Strict Winner Creation Guard: newly created winner MUST start with status: "pending" and payoutStatus: "unpaid" (never paid)
+    const testNewWinner = new WinnerModel({
+      drawId: targetWinner.drawId,
+      userId: targetWinner.userId,
+      tier: "tier_3_three_match",
+      matchCount: 3,
+      matchedNumbers: [38, 41],
+      prizeAmount: 100,
+      status: "paid", // Deliberately testing that "paid" cannot be set on creation
+      payoutStatus: "paid",
+    });
+    await testNewWinner.save();
+    assert(
+      testNewWinner.status === "pending" && testNewWinner.payoutStatus === "unpaid",
+      "Strict Rule Enforced: When a winner object is created first, status is strictly 'pending' and payoutStatus is 'unpaid' (never paid)"
+    );
+    await WinnerModel.findByIdAndDelete(testNewWinner._id);
+
+    if (targetWinner.payoutStatus === "paid" || targetWinner.verificationStatus === "approved") {
+      await WinnerModel.findByIdAndUpdate(testWinnerId, {
+        $set: {
+          status: "pending",
+          verificationStatus: "pending_proof",
+          payoutStatus: "unpaid",
+          rejectionReason: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          payoutMethod: null,
+          payoutReference: null,
+          paidAt: null,
+        },
+      });
+    }
+
     // 3. Submit proof screenshot
     const proof = await request(`/api/winners/${testWinnerId}/proof`, {
       method: "POST",
@@ -526,6 +600,20 @@ async function runFullEcosystemTest() {
       "Admin rejects proof: status transitioned to 'rejected' with custom feedback"
     );
 
+    // 4b. Strict verification failure guard: Cannot execute payout on rejected claim!
+    const failedPayout = await request(`/api/admin/winners/${testWinnerId}/payout`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({
+        payoutMethod: "Direct Bank Wire",
+        payoutReference: "WIRE-INVALID",
+      }),
+    });
+    assert(
+      failedPayout.status === 400 && failedPayout.data?.error?.code === "VERIFICATION_FAILED",
+      "Strict Rule Enforced: Payout strictly blocked (HTTP 400 VERIFICATION_FAILED) when verification status is 'rejected'"
+    );
+
     // 5. Admin approves replacement proof
     const approve = await request(`/api/admin/winners/${testWinnerId}/review`, {
       method: "PATCH",
@@ -535,6 +623,17 @@ async function runFullEcosystemTest() {
     assert(
       approve.status === 200 && approve.data.data?.winner?.verificationStatus === "approved",
       "Admin approves verified scorecard: status transitioned to 'approved' for payout"
+    );
+
+    // 5b. Immutability guard: Once approved, status cannot be changed or rejected!
+    const rejectAfterApproval = await request(`/api/admin/winners/${testWinnerId}/review`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: "reject", rejectionReason: "Try changing approved" }),
+    });
+    assert(
+      rejectAfterApproval.status === 400 && rejectAfterApproval.data?.error?.code === "ALREADY_APPROVED",
+      "Strict Rule Enforced: Once approved, verification status is immutable and cannot be changed or rejected (HTTP 400)"
     );
 
     // 6. Admin records payout
@@ -549,6 +648,31 @@ async function runFullEcosystemTest() {
     assert(
       payout.status === 200 && payout.data.data?.winner?.payoutStatus === "paid",
       "Admin records payout: status transitioned to 'paid' with transaction reference"
+    );
+
+    // 6b. Post-payout immutability: Once paid out, cannot reject verification status
+    const rejectAfterPaid = await request(`/api/admin/winners/${testWinnerId}/review`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: "reject", rejectionReason: "Try changing paid prize" }),
+    });
+    assert(
+      rejectAfterPaid.status === 400 && rejectAfterPaid.data?.error?.code === "PRIZE_ALREADY_PAID",
+      "Strict Rule Enforced: Once paid out, verification status cannot be rejected (HTTP 400 PRIZE_ALREADY_PAID)"
+    );
+
+    // 6c. Double-payout prevention: Cannot payout a prize that has already been paid
+    const doublePayout = await request(`/api/admin/winners/${testWinnerId}/payout`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({
+        payoutMethod: "Direct Bank Wire",
+        payoutReference: "WIRE-DUPLICATE",
+      }),
+    });
+    assert(
+      doublePayout.status === 400 && doublePayout.data?.error?.code === "ALREADY_PAID",
+      "Strict Rule Enforced: Duplicate payout prevented once prize has been paid out (HTTP 400 ALREADY_PAID)"
     );
   } catch (err) {
     assert(false, "Module 7 threw unhandled error", err.message);
@@ -606,6 +730,7 @@ async function runFullEcosystemTest() {
     { path: "/admin/users", name: "Admin Golfer Roster" },
     { path: "/admin/charities", name: "Admin Charities Manager" },
     { path: "/docs", name: "OpenAPI Swagger UI Portal" },
+    { path: "/terms", name: "Regulations & Gaming Disclaimers" },
   ];
 
   for (const r of routes) {

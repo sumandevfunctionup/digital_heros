@@ -28,14 +28,20 @@ export async function GET() {
     const nextDrawDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     const countdownSeconds = Math.max(0, Math.floor((nextDrawDate.getTime() - now.getTime()) / 1000));
 
+    const nextDrawMonth = `${nextDrawDate.getUTCFullYear()}-${String(nextDrawDate.getUTCMonth() + 1).padStart(2, "0")}`;
+    const nextDrawNumber = lastDraw ? lastDraw.drawNumber + 1 : 101;
+
     return NextResponse.json({
       success: true,
       data: {
+        drawNumber: nextDrawNumber,
+        drawMonth: nextDrawMonth,
         nextDrawDate,
         countdownSeconds,
         activeSubscribersCount,
         jackpotRolloverIn,
         estimatedTotalPool,
+        estimatedPool: estimatedTotalPool,
         tier1EstimatedJackpot: +(estimatedTotalPool * 0.4).toFixed(2), // 40%
         tier2EstimatedPool: +(estimatedTotalPool * 0.35).toFixed(2),   // 35%
         tier3EstimatedPool: +(estimatedTotalPool * 0.25).toFixed(2),   // 25%

@@ -114,7 +114,7 @@ npm install -D @types/bcryptjs @types/canvas-confetti
 
 ## 4. Environment Variables Mapping to Dependencies
 
-Each integrated package connects to specific keys in [.env.local](file:///home/suman/Desktop/workplace/digital_heros/digital_heros/.env.local):
+Each integrated package connects to specific keys in [.env](file:///home/suman/Desktop/workplace/digital_heros/digital_heros/.env):
 
 | Environment Variable | Target Package / Purpose | Example Value |
 | :--- | :--- | :--- |
