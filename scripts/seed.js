@@ -207,7 +207,7 @@ async function seed() {
     drawDate: daysAgo(15),
     algorithmType: "random",
     status: "published",
-    drawnNumbers: [7, 18, 24, 38, 41], // Matched subscriber1's 38 and 41
+    drawnNumbers: [7, 18, 35, 38, 41], // Matched subscriber1's 35, 38, and 41
     activeSubscribersCount: 250,
     basePrizePool: 3750,
     jackpotRolloverIn: 0,
@@ -232,7 +232,7 @@ async function seed() {
     userId: subscriber1._id,
     tier: "tier_3_three_match",
     matchCount: 3,
-    matchedNumbers: [38, 41],
+    matchedNumbers: [35, 38, 41],
     userSubmittedScores: [
       { score: 39, date: daysAgo(2) },
       { score: 42, date: daysAgo(6) },

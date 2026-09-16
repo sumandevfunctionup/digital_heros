@@ -301,14 +301,30 @@ export default function WinningsDashboardPage() {
 
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-1.5 font-mono text-xs">
-                          {win.matchedNumbers?.map((num, i) => (
-                            <span
-                              key={i}
-                              className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center font-bold"
-                            >
-                              {num}
-                            </span>
-                          ))}
+                          {(() => {
+                            let nums = win.matchedNumbers || [];
+                            if (
+                              nums.length < (win.matchCount || 0) &&
+                              win.drawId?.drawnNumbers &&
+                              Array.isArray(win.userSubmittedScores)
+                            ) {
+                              const drawnSet = new Set(win.drawId.drawnNumbers);
+                              const computed = win.userSubmittedScores
+                                .map((s) => s.score)
+                                .filter((s) => drawnSet.has(s));
+                              if (computed.length >= nums.length) {
+                                nums = computed;
+                              }
+                            }
+                            return nums.map((num, i) => (
+                              <span
+                                key={i}
+                                className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center font-bold"
+                              >
+                                {num}
+                              </span>
+                            ));
+                          })()}
                         </div>
                       </td>
 

@@ -303,14 +303,30 @@ export default function AdminWinnersVerificationPage() {
                     {/* Matched Numbers */}
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-1 font-mono text-xs">
-                        {win.matchedNumbers?.map((n, i) => (
-                          <span
-                            key={i}
-                            className="w-5 h-5 rounded bg-white/10 text-white flex items-center justify-center font-bold"
-                          >
-                            {n}
-                          </span>
-                        ))}
+                        {(() => {
+                          let nums = win.matchedNumbers || [];
+                          if (
+                            nums.length < (win.matchCount || 0) &&
+                            win.drawId?.drawnNumbers &&
+                            Array.isArray(win.userSubmittedScores)
+                          ) {
+                            const drawnSet = new Set(win.drawId.drawnNumbers);
+                            const computed = win.userSubmittedScores
+                              .map((s) => s.score)
+                              .filter((s) => drawnSet.has(s));
+                            if (computed.length >= nums.length) {
+                              nums = computed;
+                            }
+                          }
+                          return nums.map((n, i) => (
+                            <span
+                              key={i}
+                              className="w-5 h-5 rounded bg-white/10 text-white flex items-center justify-center font-bold"
+                            >
+                              {n}
+                            </span>
+                          ));
+                        })()}
                       </div>
                     </td>
 

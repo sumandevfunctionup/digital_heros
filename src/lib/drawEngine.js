@@ -51,46 +51,76 @@ export async function generateFrequencyWeightedDrawNumbers(activeTickets) {
 }
 
 /**
- * Gathers all active subscribers with complete 5-score tickets
+ * Gathers all active subscribers with complete 5-score tickets for the given draw month
+ * Ensures that users who joined in later months cannot win past draws, and only scores
+ * played on or before the draw cycle ended are eligible.
  */
-export async function getEligibleSubscribersAndTickets() {
-  // Find all active subscribers (strictly role: "user" to exclude administrators)
-  const activeSubscribers = await User.find({
+export async function getEligibleSubscribersAndTickets(drawMonth = null) {
+  // If a drawMonth is provided (YYYY-MM), determine cycle cutoff date
+  let cycleEnd = null;
+  if (drawMonth && /^\d{4}-\d{2}$/.test(drawMonth)) {
+    const [year, month] = drawMonth.split("-").map(Number);
+    // Last millisecond of that draw month
+    cycleEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+  }
+
+  // Find all subscribers eligible for this draw period:
+  // 1. Role: "user" (strictly exclude administrators)
+  // 2. Active or trialing subscription
+  // 3. User MUST have registered/subscribed on or before this draw cycle ended!
+  const userQuery = {
     role: "user",
     subscriptionStatus: { $in: ["active", "trialing"] },
-  }).select("_id email firstName lastName subscriptionStatus");
+  };
+
+  if (cycleEnd) {
+    userQuery.createdAt = { $lte: cycleEnd };
+  }
+
+  const activeSubscribers = await User.find(userQuery).select(
+    "_id email firstName lastName subscriptionStatus createdAt"
+  );
 
   const subscriberMap = new Map();
   for (const sub of activeSubscribers) {
     subscriberMap.set(sub._id.toString(), sub);
   }
 
-  // Find active scores for these subscribers
-  const activeScores = await Score.find({
+  // Find scores played on or before the draw cycle ended
+  const scoreQuery = {
     userId: { $in: Array.from(subscriberMap.keys()) },
-    isCurrentActive: true,
-  }).sort({ date: -1 });
+  };
 
-  // Group scores by user
+  if (cycleEnd) {
+    scoreQuery.date = { $lte: cycleEnd };
+  } else {
+    scoreQuery.isCurrentActive = true;
+  }
+
+  const scores = await Score.find(scoreQuery).sort({ date: -1 });
+
+  // Group scores by user and take the 5 most recent rounds for this draw cycle
   const userScoresMap = new Map();
-  for (const scoreDoc of activeScores) {
+  for (const scoreDoc of scores) {
     const uid = scoreDoc.userId.toString();
     if (!userScoresMap.has(uid)) {
       userScoresMap.set(uid, []);
     }
-    userScoresMap.get(uid).push(scoreDoc);
+    if (userScoresMap.get(uid).length < 5) {
+      userScoresMap.get(uid).push(scoreDoc);
+    }
   }
 
-  // Filter only tickets that have exactly 5 scores (or active scores)
+  // Filter only tickets that have exactly 5 scores for this draw period
   const eligibleTickets = [];
-  for (const [userId, scores] of userScoresMap.entries()) {
-    if (scores.length === 5) {
+  for (const [userId, userScores] of userScoresMap.entries()) {
+    if (userScores.length === 5) {
       const user = subscriberMap.get(userId);
       eligibleTickets.push({
         user,
         userId: user._id,
-        scores: scores.map((s) => s.score),
-        scoreDocs: scores.map((s) => ({ score: s.score, date: s.date })),
+        scores: userScores.map((s) => s.score),
+        scoreDocs: userScores.map((s) => ({ score: s.score, date: s.date })),
       });
     }
   }
@@ -106,7 +136,7 @@ export async function executeDrawCalculation({
   algorithmType = "random",
   forcedNumbers = null,
 }) {
-  const { activeSubscribers, eligibleTickets } = await getEligibleSubscribersAndTickets();
+  const { activeSubscribers, eligibleTickets } = await getEligibleSubscribersAndTickets(drawMonth);
 
   // Find last published draw to get jackpot rollover in (PRD § 07)
   const lastDraw = await Draw.findOne({ status: "published" }).sort({ drawNumber: -1 });
@@ -135,15 +165,21 @@ export async function executeDrawCalculation({
     }
   }
 
-  const drawnSet = new Set(drawnNumbers);
-
   // Evaluate matching scores for all eligible tickets
   const tier1Winners = [];
   const tier2Winners = [];
   const tier3Winners = [];
 
   for (const ticket of eligibleTickets) {
-    const matched = ticket.scores.filter((s) => drawnSet.has(s));
+    const matched = [];
+    const availableDrawn = new Set(drawnNumbers);
+    for (const s of ticket.scores) {
+      if (availableDrawn.has(s)) {
+        matched.push(s);
+        availableDrawn.delete(s); // each drawn ball can only be matched once
+      }
+    }
+    matched.sort((a, b) => a - b);
     const matchCount = matched.length;
 
     if (matchCount === 5) {
