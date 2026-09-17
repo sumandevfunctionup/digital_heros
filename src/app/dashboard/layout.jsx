@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Dices,
 } from "lucide-react";
+import { APP_VERSION } from "@/lib/version";
 
 export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
@@ -194,6 +195,9 @@ export default function DashboardLayout({ children }) {
                       Admin Access
                     </span>
                   )}
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-white/5 text-white/50 border border-white/10">
+                    v{APP_VERSION}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-white/50">
                   <span>{user.email}</span>

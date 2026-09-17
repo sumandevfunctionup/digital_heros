@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Heart, Shield, Trophy } from "lucide-react";
+import { APP_VERSION } from "@/lib/version";
 
 export default function Footer() {
   return (
@@ -128,7 +129,11 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <p>© 2026 digital.HEROES. Sample Trainee Selection Assignment. All rights reserved.</p>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-mono text-[10px] bg-white/5 border border-white/10 text-white/70">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              v{APP_VERSION}
+            </span>
             <span>Built with Next.js 16 & MongoDB Atlas</span>
             <span className="text-emerald-400 font-medium">● Systems Operational</span>
           </div>

@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import StripePaymentModal from "@/components/StripePaymentModal";
+import { APP_VERSION } from "@/lib/version";
 import {
   Dialog,
   DialogContent,
@@ -512,11 +513,19 @@ export default function SettingsDashboardPage() {
             </form>
           </div>
 
-          <div className="mt-8 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs">
-            <span className="font-bold text-white block mb-1">Golfer Account ID</span>
-            <span className="font-mono text-white/50 text-[11px] select-all">
-              {user?.id || user?._id || "usr_anonymous"}
-            </span>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs">
+              <span className="font-bold text-white block mb-1">Golfer Account ID</span>
+              <span className="font-mono text-white/50 text-[11px] select-all">
+                {user?.id || user?._id || "usr_anonymous"}
+              </span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs">
+              <span className="font-bold text-white block mb-1">Application Version</span>
+              <span className="font-mono text-amber-400 font-semibold text-[11px]">
+                v{APP_VERSION}
+              </span>
+            </div>
           </div>
         </div>
       </div>

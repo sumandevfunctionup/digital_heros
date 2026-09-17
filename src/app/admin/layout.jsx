@@ -20,6 +20,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { APP_VERSION } from "@/lib/version";
 
 export default function AdminLayout({ children }) {
   const { user, loading, login } = useAuth();
@@ -205,6 +206,9 @@ export default function AdminLayout({ children }) {
                   </h1>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
                     Admin Terminal
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/5 text-white/60 border border-white/10">
+                    v{APP_VERSION}
                   </span>
                 </div>
                 <p className="text-xs text-white/50">
