@@ -241,7 +241,7 @@ export async function POST(request) {
           },
           { new: true }
         );
-
+        //new
         // Calculate 10%+ Philanthropic Charity Deduction (PRD § 04)
         const charityPercentage = user.charityContributionPercent || 10;
         const charityAmount = +(info.amount * (charityPercentage / 100)).toFixed(2);
