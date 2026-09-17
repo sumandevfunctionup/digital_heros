@@ -30,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { TableSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function AdminUsersDirectoryPage() {
   const [users, setUsers] = useState([]);
@@ -298,9 +299,7 @@ export default function AdminUsersDirectoryPage() {
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-xs font-mono text-white/50">
-            Loading user roster...
-          </div>
+          <TableSkeleton rows={limit || 8} cols={6} />
         ) : users.length === 0 ? (
           <div className="py-16 text-center border border-dashed border-white/10 rounded-2xl">
             <Users className="w-8 h-8 text-white/20 mx-auto mb-2" />

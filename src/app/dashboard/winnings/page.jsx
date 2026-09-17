@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { TableSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function WinningsDashboardPage() {
   const { user } = useAuth();
@@ -267,7 +268,9 @@ export default function WinningsDashboardPage() {
           </span>
         </div>
 
-        {winnings.length === 0 ? (
+        {loading ? (
+          <TableSkeleton rows={limit || 5} cols={6} />
+        ) : winnings.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-white/10 rounded-2xl">
             <Trophy className="w-10 h-10 text-white/20 mx-auto mb-3" />
             <h4 className="text-sm font-bold text-white/80">No prize winnings yet</h4>

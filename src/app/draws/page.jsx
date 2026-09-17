@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { DrawCardSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function DrawsPublicPage() {
   const [upcomingDraw, setUpcomingDraw] = useState(null);
@@ -263,7 +264,9 @@ export default function DrawsPublicPage() {
             </span>
           </div>
 
-          {pastDraws.length === 0 ? (
+          {loading ? (
+            <DrawCardSkeleton count={limit || 3} />
+          ) : pastDraws.length === 0 ? (
             <div className="text-center py-16 border border-dashed border-white/10 rounded-2xl">
               <Calendar className="w-8 h-8 text-white/20 mx-auto mb-2" />
               <p className="text-sm text-white/50">No published draws yet.</p>

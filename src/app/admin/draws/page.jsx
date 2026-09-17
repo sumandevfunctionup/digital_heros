@@ -15,6 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function AdminDrawsConsolePage() {
   const [draws, setDraws] = useState([]);
@@ -127,9 +128,7 @@ export default function AdminDrawsConsolePage() {
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-xs font-mono text-white/50">
-            Loading draw records...
-          </div>
+          <TableSkeleton rows={5} cols={5} />
         ) : draws.length === 0 ? (
           <div className="py-16 text-center border border-dashed border-white/10 rounded-2xl">
             <Dices className="w-8 h-8 text-white/20 mx-auto mb-2" />

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import DirectDonationModal from "@/components/DirectDonationModal";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { CardGridSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function CharitiesPage() {
   const [charities, setCharities] = useState([]);
@@ -111,11 +112,7 @@ export default function CharitiesPage() {
 
       {/* Charities Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-96 rounded-2xl bg-white/5 border border-white/10" />
-          ))}
-        </div>
+        <CardGridSkeleton count={limit || 6} />
       ) : charities.length === 0 ? (
         <div className="text-center py-20 border border-white/10 rounded-2xl bg-[#11141B] p-8">
           <p className="text-base text-slate-400">No charities match your search query.</p>

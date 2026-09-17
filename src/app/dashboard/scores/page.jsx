@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { TableSkeleton } from "@/components/ui/SkeletonLoaders";
 
 /**
  * Calculates the next available calendar date that doesn't conflict with any recorded rounds.
@@ -681,9 +682,7 @@ export default function ScoresDashboardPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-white/40 text-xs font-mono">
-            Loading scores...
-          </div>
+          <TableSkeleton rows={5} cols={5} />
         ) : displayedScores.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
             <Target className="w-8 h-8 text-white/20 mx-auto mb-2" />

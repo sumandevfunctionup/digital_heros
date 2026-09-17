@@ -21,6 +21,7 @@ import {
   Coins,
 } from "lucide-react";
 import DirectDonationModal from "@/components/DirectDonationModal";
+import { DashboardOverviewSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function DashboardOverviewPage() {
   const { user, refreshUser } = useAuth();
@@ -80,6 +81,10 @@ export default function DashboardOverviewPage() {
 
   const isSubscribed =
     user?.subscriptionStatus === "active" || user?.subscriptionStatus === "trialing";
+
+  if (loading) {
+    return <DashboardOverviewSkeleton />;
+  }
 
   return (
     <div className="space-y-8">

@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { CardGridSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function AdminCharitiesManagementPage() {
   const [charities, setCharities] = useState([]);
@@ -275,8 +276,8 @@ export default function AdminCharitiesManagementPage() {
       {/* Charities List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {loading ? (
-          <div className="col-span-2 py-16 text-center text-xs font-mono text-white/50">
-            Loading charity partners...
+          <div className="col-span-2">
+            <CardGridSkeleton count={limit || 4} gridClass="grid grid-cols-1 md:grid-cols-2 gap-6" />
           </div>
         ) : (
           charities.map((charity) => (

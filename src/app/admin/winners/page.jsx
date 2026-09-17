@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PaginationControl from "@/components/ui/PaginationControl";
+import { TableSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function AdminWinnersVerificationPage() {
   const [winners, setWinners] = useState([]);
@@ -238,9 +239,7 @@ export default function AdminWinnersVerificationPage() {
       {/* Queue Table */}
       <div className="rounded-3xl border border-white/10 bg-[#0F1118]/80 p-6 sm:p-8 backdrop-blur-xl">
         {loading ? (
-          <div className="py-16 text-center text-xs font-mono text-white/50">
-            Loading verification queue...
-          </div>
+          <TableSkeleton rows={limit || 6} cols={6} />
         ) : winners.length === 0 ? (
           <div className="py-16 text-center border border-dashed border-white/10 rounded-2xl">
             <CheckCircle2 className="w-8 h-8 text-white/20 mx-auto mb-2" />

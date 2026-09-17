@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import DirectDonationModal from "@/components/DirectDonationModal";
+import { CharityDetailSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function CharityDetailPage({ params }) {
   const unwrappedParams = use(params);
@@ -65,8 +66,8 @@ export default function CharityDetailPage({ params }) {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
+      <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in">
+        <CharityDetailSkeleton />
       </div>
     );
   }

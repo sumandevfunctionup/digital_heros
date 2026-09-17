@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnalyticsSkeleton } from "@/components/ui/SkeletonLoaders";
 
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState(null);
@@ -47,14 +48,7 @@ export default function AdminAnalyticsPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="py-24 text-center space-y-4">
-        <div className="w-12 h-12 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin mx-auto" />
-        <p className="text-xs font-mono text-white/50 tracking-widest uppercase">
-          Compiling Platform Telemetry & Histograms...
-        </p>
-      </div>
-    );
+    return <AnalyticsSkeleton />;
   }
 
   if (!data) {
