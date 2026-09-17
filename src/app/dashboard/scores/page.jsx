@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 /**
  * Calculates the next available calendar date that doesn't conflict with any recorded rounds.
@@ -78,6 +79,8 @@ export default function ScoresDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState("all"); // "all", "active", "archived"
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyLimit, setHistoryLimit] = useState(10);
   const [lastRolledScore, setLastRolledScore] = useState(null);
 
   // Form State
@@ -160,6 +163,13 @@ export default function ScoresDashboardPage() {
     if (filter === "archived") return archivedScores;
     return allScores;
   }, [filter, activeScores, archivedScores, allScores]);
+
+  // Paginated slice for current page
+  const totalHistoryPages = Math.ceil(displayedScores.length / historyLimit) || 1;
+  const paginatedScores = useMemo(() => {
+    const start = (historyPage - 1) * historyLimit;
+    return displayedScores.slice(start, start + historyLimit);
+  }, [displayedScores, historyPage, historyLimit]);
 
   const handleSubmitScore = async (e) => {
     e.preventDefault();
@@ -629,7 +639,10 @@ export default function ScoresDashboardPage() {
           {/* Filter Pills */}
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10 text-xs">
             <button
-              onClick={() => setFilter("all")}
+              onClick={() => {
+                setFilter("all");
+                setHistoryPage(1);
+              }}
               className={`px-3 py-1 rounded-lg transition-all font-medium ${
                 filter === "all"
                   ? "bg-emerald-500 text-black font-semibold shadow-sm"
@@ -639,7 +652,10 @@ export default function ScoresDashboardPage() {
               All Rounds ({allScores.length})
             </button>
             <button
-              onClick={() => setFilter("active")}
+              onClick={() => {
+                setFilter("active");
+                setHistoryPage(1);
+              }}
               className={`px-3 py-1 rounded-lg transition-all font-medium ${
                 filter === "active"
                   ? "bg-emerald-500 text-black font-semibold shadow-sm"
@@ -649,7 +665,10 @@ export default function ScoresDashboardPage() {
               Active Ticket ({activeCount})
             </button>
             <button
-              onClick={() => setFilter("archived")}
+              onClick={() => {
+                setFilter("archived");
+                setHistoryPage(1);
+              }}
               className={`px-3 py-1 rounded-lg transition-all font-medium ${
                 filter === "archived"
                   ? "bg-emerald-500 text-black font-semibold shadow-sm"
@@ -690,7 +709,7 @@ export default function ScoresDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {displayedScores.map((score) => {
+                {paginatedScores.map((score) => {
                   const activeIdx = activeScores.findIndex((s) => s._id === score._id);
                   const isSlot5Oldest = activeIdx === 4 && activeScores.length === 5;
                   const isJustRolled = lastRolledScore && lastRolledScore._id === score._id;
@@ -770,6 +789,21 @@ export default function ScoresDashboardPage() {
             </table>
           </div>
         )}
+
+        <PaginationControl
+          currentPage={historyPage}
+          totalPages={totalHistoryPages}
+          totalItems={displayedScores.length}
+          limit={historyLimit}
+          limitOptions={[10, 20, 50, 100]}
+          onPageChange={setHistoryPage}
+          onLimitChange={(newLimit) => {
+            setHistoryLimit(newLimit);
+            setHistoryPage(1);
+          }}
+          itemName="rounds"
+          className="pt-6 border-t border-white/10"
+        />
       </div>
 
       {/* Edit Score Modal */}

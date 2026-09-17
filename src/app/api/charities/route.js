@@ -35,14 +35,38 @@ export async function GET(request) {
       query.isFeatured = true;
     }
 
-    const charities = await Charity.find(query)
+    const hasPagination = searchParams.has("page") || searchParams.has("limit");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = searchParams.has("limit")
+      ? Math.min(100, Math.max(1, parseInt(searchParams.get("limit"), 10)))
+      : hasPagination
+      ? 12
+      : 0;
+
+    const total = await Charity.countDocuments(query);
+    const totalPages = limit > 0 ? Math.ceil(total / limit) || 1 : 1;
+
+    let charitiesQuery = Charity.find(query)
       .sort({ isFeatured: -1, totalFundsRaised: -1 })
       .select("-__v");
+
+    if (limit > 0) {
+      charitiesQuery = charitiesQuery.skip((page - 1) * limit).limit(limit);
+    }
+
+    const charities = await charitiesQuery;
 
     return NextResponse.json({
       success: true,
       data: { charities },
-      meta: { total: charities.length },
+      meta: {
+        total,
+        page,
+        limit: limit > 0 ? limit : total,
+        totalPages,
+        hasNextPage: limit > 0 ? page < totalPages : false,
+        hasPrevPage: limit > 0 ? page > 1 : false,
+      },
     });
   } catch (error) {
     console.error("[API Get Charities Error]:", error);

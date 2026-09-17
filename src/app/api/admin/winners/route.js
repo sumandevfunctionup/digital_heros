@@ -43,13 +43,23 @@ export async function GET(request) {
       }
     }
 
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
+    const skip = (page - 1) * limit;
+
+    const total = await Winner.countDocuments(query);
+    const totalPages = Math.ceil(total / limit) || 1;
+
     const winners = await Winner.find(query)
       .populate("userId", "firstName lastName email homeClub handicapIndex subscriptionStatus")
       .populate("drawId", "drawNumber drawMonth drawDate drawnNumbers")
       .populate("reviewedBy", "firstName lastName")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     const counts = {
+      all: await Winner.countDocuments(),
       pending_proof: await Winner.countDocuments({
         $or: [{ status: "pending_proof" }, { verificationStatus: "pending_proof", payoutStatus: { $ne: "paid" } }],
       }),
@@ -79,7 +89,14 @@ export async function GET(request) {
         winners,
         counts,
       },
-      meta: { total: winners.length },
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("[API Admin Get Winners Error]:", error);

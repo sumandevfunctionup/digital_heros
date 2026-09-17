@@ -29,11 +29,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 export default function AdminUsersDirectoryPage() {
   const [users, setUsers] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,6 +65,8 @@ export default function AdminUsersDirectoryPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
       if (searchTerm.trim()) params.append("search", searchTerm.trim());
       if (roleFilter !== "All") params.append("role", roleFilter);
       if (statusFilter !== "All") params.append("subscriptionStatus", statusFilter);
@@ -69,6 +77,7 @@ export default function AdminUsersDirectoryPage() {
         if (json.success && json.data) {
           setUsers(json.data.users || []);
           setTotalUsers(json.meta?.total || 0);
+          setTotalPages(json.meta?.totalPages || 1);
         }
       }
     } catch {
@@ -79,8 +88,12 @@ export default function AdminUsersDirectoryPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    setPage(1);
   }, [roleFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [page, limit, roleFilter, statusFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -394,6 +407,22 @@ export default function AdminUsersDirectoryPage() {
                 ))}
               </tbody>
             </table>
+
+            {/* Table Pagination */}
+            <PaginationControl
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalUsers}
+              limit={limit}
+              limitOptions={[10, 20, 50, 100]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onLimitChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+              itemName="golfers"
+              className="border-t border-white/10 px-4"
+            />
           </div>
         )}
       </div>

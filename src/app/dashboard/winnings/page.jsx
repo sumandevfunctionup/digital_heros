@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 export default function WinningsDashboardPage() {
   const { user } = useAuth();
@@ -36,21 +37,34 @@ export default function WinningsDashboardPage() {
   const [pendingClaimCount, setPendingClaimCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Proof Modal State
   const [selectedWinner, setSelectedWinner] = useState(null);
   const [proofUrl, setProofUrl] = useState("");
   const [submittingProof, setSubmittingProof] = useState(false);
 
-  const fetchWinnings = async () => {
+  const fetchWinnings = async (p = page, l = limit) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/winners");
+      const res = await fetch(`/api/winners?page=${p}&limit=${l}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
           setWinnings(json.data.winnings || []);
           setTotalWon(json.data.totalWon || 0);
           setPendingClaimCount(json.data.pendingClaimCount || 0);
+          if (json.data.meta) {
+            setTotalItems(json.data.meta.total || 0);
+            setTotalPages(json.data.meta.totalPages || 1);
+          } else {
+            setTotalItems(json.data.winnings?.length || 0);
+            setTotalPages(1);
+          }
         }
       }
     } catch {
@@ -61,8 +75,8 @@ export default function WinningsDashboardPage() {
   };
 
   useEffect(() => {
-    fetchWinnings();
-  }, []);
+    fetchWinnings(page, limit);
+  }, [page, limit]);
 
   const handleUploadProof = async (e) => {
     e.preventDefault();
@@ -249,7 +263,7 @@ export default function WinningsDashboardPage() {
             Prize Records & Claims Roster
           </h3>
           <span className="text-xs font-mono text-white/40">
-            {winnings.length} Total Records
+            {totalItems} Total Records
           </span>
         </div>
 
@@ -377,6 +391,21 @@ export default function WinningsDashboardPage() {
             </table>
           </div>
         )}
+
+        <PaginationControl
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          limit={limit}
+          limitOptions={[5, 10, 20, 50]}
+          onPageChange={setPage}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+          itemName="prize records"
+          className="pt-6 border-t border-white/10"
+        />
       </div>
 
       {/* Proof Upload Dialog */}

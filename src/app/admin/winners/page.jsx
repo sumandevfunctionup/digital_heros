@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 export default function AdminWinnersVerificationPage() {
   const [winners, setWinners] = useState([]);
@@ -40,6 +41,12 @@ export default function AdminWinnersVerificationPage() {
   });
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(true);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalWinners, setTotalWinners] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Review Dialog State
   const [inspectingWinner, setInspectingWinner] = useState(null);
@@ -55,23 +62,27 @@ export default function AdminWinnersVerificationPage() {
   const fetchWinners = async () => {
     try {
       setLoading(true);
-      let url = "/api/admin/winners";
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
       if (activeTab === "needs_review") {
-        url += "?status=pending_approval";
+        params.append("status", "pending_approval");
       } else if (activeTab === "pending_proof") {
-        url += "?status=pending_proof";
+        params.append("status", "pending_proof");
       } else if (activeTab === "approved") {
-        url += "?status=approved";
+        params.append("status", "approved");
       } else if (activeTab === "paid") {
-        url += "?status=paidout";
+        params.append("status", "paidout");
       }
 
-      const res = await fetch(url);
+      const res = await fetch(`/api/admin/winners?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
           setWinners(json.data.winners || []);
           if (json.data.counts) setCounts(json.data.counts);
+          setTotalWinners(json.meta?.total || 0);
+          setTotalPages(json.meta?.totalPages || 1);
         }
       }
     } catch {
@@ -82,8 +93,12 @@ export default function AdminWinnersVerificationPage() {
   };
 
   useEffect(() => {
-    fetchWinners();
+    setPage(1);
   }, [activeTab]);
+
+  useEffect(() => {
+    fetchWinners();
+  }, [activeTab, page, limit]);
 
   const handleReviewAction = async (action) => {
     if (!inspectingWinner) return;
@@ -386,6 +401,22 @@ export default function AdminWinnersVerificationPage() {
                 ))}
               </tbody>
             </table>
+
+            {/* Table Pagination */}
+            <PaginationControl
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalWinners}
+              limit={limit}
+              limitOptions={[10, 20, 50, 100]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onLimitChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+              itemName="prize claims"
+              className="border-t border-white/10 px-4"
+            />
           </div>
         )}
       </div>

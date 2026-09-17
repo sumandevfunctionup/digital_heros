@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import DirectDonationModal from "@/components/DirectDonationModal";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 export default function CharitiesPage() {
   const [charities, setCharities] = useState([]);
@@ -19,6 +20,12 @@ export default function CharitiesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedDonationCharity, setSelectedDonationCharity] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(6);
+  const [totalCharities, setTotalCharities] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const categories = [
     "All",
@@ -30,8 +37,14 @@ export default function CharitiesPage() {
   ];
 
   useEffect(() => {
+    setPage(1);
+  }, [search, selectedCategory]);
+
+  useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
+    params.set("page", page.toString());
+    params.set("limit", limit.toString());
     if (search) params.set("search", search);
     if (selectedCategory !== "All") params.set("category", selectedCategory);
 
@@ -40,11 +53,13 @@ export default function CharitiesPage() {
       .then((data) => {
         if (data.success && data.data?.charities) {
           setCharities(data.data.charities);
+          setTotalCharities(data.meta?.total || 0);
+          setTotalPages(data.meta?.totalPages || 1);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, page, limit]);
 
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -198,6 +213,22 @@ export default function CharitiesPage() {
           ))}
         </div>
       )}
+
+      {/* Pagination Controls */}
+      <PaginationControl
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={totalCharities}
+        limit={limit}
+        limitOptions={[6, 12, 24, 48]}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        itemName="charity partners"
+        className="mt-6"
+      />
 
       {/* Direct Donation Modal */}
       {selectedDonationCharity && (

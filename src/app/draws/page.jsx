@@ -18,12 +18,19 @@ import {
   Award,
   Users,
 } from "lucide-react";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 export default function DrawsPublicPage() {
   const [upcomingDraw, setUpcomingDraw] = useState(null);
   const [pastDraws, setPastDraws] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedDraws, setExpandedDraws] = useState({});
+
+  // Pagination for Published Draws Archive
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [totalDraws, setTotalDraws] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const toggleDraw = (drawId) => {
     setExpandedDraws((prev) => ({
@@ -45,12 +52,15 @@ export default function DrawsPublicPage() {
           }
         }
 
-        // 2. Fetch past published draws
-        const pastRes = await fetch("/api/draws");
+        // 2. Fetch past published draws with pagination
+        const pastRes = await fetch(`/api/draws?page=${page}&limit=${limit}`);
         if (pastRes.ok) {
           const pastJson = await pastRes.json();
           if (pastJson.success && pastJson.data?.draws) {
             setPastDraws(pastJson.data.draws);
+            setTotalDraws(pastJson.meta?.total || 0);
+            setTotalPages(pastJson.meta?.totalPages || 1);
+
             // Default expand all draws that have winners so they are immediately visible
             const initialExpanded = {};
             pastJson.data.draws.forEach((d) => {
@@ -69,7 +79,7 @@ export default function DrawsPublicPage() {
     }
 
     loadDraws();
-  }, []);
+  }, [page, limit]);
 
   const totalRollover = upcomingDraw?.jackpotRolloverIn ?? 1500;
   const estimatedPool = upcomingDraw?.estimatedTotalPool ?? upcomingDraw?.estimatedPool ?? 2500;
@@ -481,6 +491,21 @@ export default function DrawsPublicPage() {
               })}
             </div>
           )}
+
+          <PaginationControl
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalDraws}
+            limit={limit}
+            limitOptions={[5, 10, 20]}
+            onPageChange={setPage}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+            itemName="published draws"
+            className="pt-6 border-t border-white/10"
+          />
         </div>
       </div>
     </div>

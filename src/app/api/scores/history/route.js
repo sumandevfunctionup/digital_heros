@@ -35,6 +35,14 @@ export async function GET(request) {
           total,
           totalPages: Math.ceil(total / limit) || 1,
         },
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+          hasNextPage: page < Math.ceil(total / limit),
+          hasPrevPage: page > 1,
+        },
       },
     });
   } catch (error) {

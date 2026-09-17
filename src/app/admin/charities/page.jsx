@@ -27,10 +27,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PaginationControl from "@/components/ui/PaginationControl";
 
 export default function AdminCharitiesManagementPage() {
   const [charities, setCharities] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalCharities, setTotalCharities] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Create / Edit Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,11 +70,17 @@ export default function AdminCharitiesManagementPage() {
   const fetchCharities = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/charities");
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
+
+      const res = await fetch(`/api/charities?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data?.charities) {
           setCharities(json.data.charities);
+          setTotalCharities(json.meta?.total || 0);
+          setTotalPages(json.meta?.totalPages || 1);
         }
       }
     } catch {
@@ -79,7 +92,7 @@ export default function AdminCharitiesManagementPage() {
 
   useEffect(() => {
     fetchCharities();
-  }, []);
+  }, [page, limit]);
 
   const handleOpenCreateModal = () => {
     setEditingCharity(null);
@@ -410,6 +423,22 @@ export default function AdminCharitiesManagementPage() {
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      <PaginationControl
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={totalCharities}
+        limit={limit}
+        limitOptions={[6, 10, 20, 50]}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        itemName="charity partners"
+        className="pt-2"
+      />
 
       {/* Create / Edit Charity Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
