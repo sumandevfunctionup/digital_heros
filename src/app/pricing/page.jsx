@@ -9,7 +9,6 @@ import StripePaymentModal from "@/components/StripePaymentModal";
 import {
   Check,
   ShieldCheck,
-  Zap,
   Heart,
   Trophy,
   Sparkles,
@@ -197,12 +196,6 @@ export default function PricingPage() {
 
           {/* Annual Plan Card (Featured) */}
           <Card className={`relative bg-gradient-to-b from-[#141824] to-[#0D1017] border rounded-3xl backdrop-blur-xl transition-all duration-300 ${billingCycle === "yearly" ? "border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.2)]" : "border-amber-500/50"}`}>
-            {/* Best Value Badge */}
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-black font-extrabold text-xs tracking-wider uppercase shadow-md flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 fill-black" />
-              Most Popular · Save $50/yr
-            </div>
-
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400">
