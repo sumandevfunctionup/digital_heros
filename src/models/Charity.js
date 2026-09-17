@@ -105,4 +105,10 @@ const CharitySchema = new mongoose.Schema(
   }
 );
 
+// Compound indexes for directory filtering, search priority, and sorting
+CharitySchema.index({ isActive: 1, isFeatured: -1, totalFundsRaised: -1 });
+CharitySchema.index({ isActive: 1, category: 1, totalFundsRaised: -1 });
+CharitySchema.index({ isActive: 1, category: 1, isFeatured: -1, totalFundsRaised: -1 });
+CharitySchema.index({ isActive: 1, createdAt: -1 });
+
 export default mongoose.models.Charity || mongoose.model("Charity", CharitySchema);

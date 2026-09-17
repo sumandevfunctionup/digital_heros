@@ -98,4 +98,9 @@ const DrawSchema = new mongoose.Schema(
   }
 );
 
+// Compound indexes for published draws archive, latest rollover lookup, and month validation
+DrawSchema.index({ status: 1, drawNumber: -1 });
+DrawSchema.index({ status: 1, drawDate: -1 });
+DrawSchema.index({ drawMonth: 1, status: 1 });
+
 export default mongoose.models.Draw || mongoose.model("Draw", DrawSchema);

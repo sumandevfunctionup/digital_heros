@@ -51,4 +51,9 @@ const DonationSchema = new mongoose.Schema(
   }
 );
 
+// Compound indexes for user donations, charity reporting, and platform analytics
+DonationSchema.index({ charityId: 1, paymentStatus: 1, createdAt: -1 });
+DonationSchema.index({ userId: 1, createdAt: -1 });
+DonationSchema.index({ paymentStatus: 1, createdAt: -1 });
+
 export default mongoose.models.Donation || mongoose.model("Donation", DonationSchema);

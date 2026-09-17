@@ -38,22 +38,29 @@ async function connectDB() {
     return cached.conn;
   }
 
-  if (!MONGODB_URI) {
-    const errorMsg = "MONGODB_URI is not defined in .env";
+  const uri = process.env.MONGODB_URI || MONGODB_URI;
+
+  if (!uri) {
+    const errorMsg = "MONGODB_URI is not defined in environment variables";
     console.error(`\x1b[31m[MongoDB] ❌ ${errorMsg}\x1b[0m`);
     throw new Error(errorMsg);
   }
 
   if (!cached.promise) {
-    const sanitizedUri = MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, "//$1:****@");
+    const sanitizedUri = uri.replace(/\/\/([^:]+):([^@]+)@/, "//$1:****@");
     console.log(`\x1b[34m[MongoDB] ⏳ Connecting to: ${sanitizedUri} ...\x1b[0m`);
 
     const opts = {
       bufferCommands: false,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4, // Force IPv4 to eliminate slow IPv6 DNS resolution delays in cloud/serverless
+      autoIndex: true,
     };
 
     cached.promise = mongoose
-      .connect(MONGODB_URI, opts)
+      .connect(uri, opts)
       .then((mongooseInstance) => {
         return mongooseInstance;
       })

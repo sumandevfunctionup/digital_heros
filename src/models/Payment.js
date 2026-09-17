@@ -92,4 +92,10 @@ const paymentSchema = new mongoose.Schema(
   }
 );
 
+// Compound indexes for user payment history, analytics revenue aggregation, and charity allocation
+paymentSchema.index({ userId: 1, createdAt: -1 });
+paymentSchema.index({ status: 1, createdAt: -1 });
+paymentSchema.index({ charityId: 1, status: 1 });
+paymentSchema.index({ createdAt: -1 });
+
 export default mongoose.models.Payment || mongoose.model("Payment", paymentSchema);

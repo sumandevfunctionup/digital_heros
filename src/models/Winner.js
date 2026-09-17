@@ -180,6 +180,15 @@ WinnerSchema.pre("insertMany", function (next, docs) {
   if (typeof next === "function") next();
 });
 
+// Compound indexes for user's winnings portal, admin verification queue, and draw winner lookups
+WinnerSchema.index({ userId: 1, createdAt: -1 });
+WinnerSchema.index({ drawId: 1, createdAt: -1 });
+WinnerSchema.index({ status: 1, createdAt: -1 });
+WinnerSchema.index({ verificationStatus: 1, createdAt: -1 });
+WinnerSchema.index({ payoutStatus: 1, createdAt: -1 });
+WinnerSchema.index({ verificationStatus: 1, payoutStatus: 1 });
+WinnerSchema.index({ drawId: 1, userId: 1 });
+
 if (mongoose.models?.Winner) {
   delete mongoose.models.Winner;
 }

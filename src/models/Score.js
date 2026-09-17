@@ -52,4 +52,10 @@ ScoreSchema.index({ userId: 1, date: 1 }, { unique: true });
 // Compound Index for fast retrieval of the 5 active scores in reverse-chronological order
 ScoreSchema.index({ userId: 1, isCurrentActive: 1, date: -1 });
 
+// Compound Index for user's full score history queries and pagination
+ScoreSchema.index({ userId: 1, date: -1 });
+
+// Compound Index for platform-wide draw simulation frequency analysis
+ScoreSchema.index({ isCurrentActive: 1, score: 1 });
+
 export default mongoose.models.Score || mongoose.model("Score", ScoreSchema);

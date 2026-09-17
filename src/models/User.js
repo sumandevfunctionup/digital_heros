@@ -94,6 +94,14 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
+// Compound and single-field performance indexes
+UserSchema.index({ stripeSubscriptionId: 1 }, { sparse: true });
+UserSchema.index({ role: 1, subscriptionStatus: 1, createdAt: -1 });
+UserSchema.index({ subscriptionStatus: 1, createdAt: -1 });
+UserSchema.index({ role: 1, createdAt: -1 });
+UserSchema.index({ createdAt: -1 });
+UserSchema.index({ selectedCharityId: 1 });
+
 if (process.env.NODE_ENV === "development" && mongoose.models.User) {
   delete mongoose.models.User;
 }
