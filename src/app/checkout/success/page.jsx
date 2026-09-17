@@ -225,7 +225,14 @@ function CheckoutSuccessContent() {
               {/* Next Steps CTA */}
               <div className="space-y-3 pt-2">
                 <Button
-                  onClick={() => router.push("/dashboard/scores")}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("payment_gateway_redirected", "true");
+                      window.location.href = "/dashboard/scores";
+                    } else {
+                      router.push("/dashboard/scores");
+                    }
+                  }}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 transition-all text-sm"
                 >
                   Enter Your 5-Score Ticket Now
@@ -233,7 +240,14 @@ function CheckoutSuccessContent() {
                 </Button>
 
                 <Button
-                  onClick={() => router.push("/dashboard/settings")}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("payment_gateway_redirected", "true");
+                      window.location.href = "/dashboard/settings";
+                    } else {
+                      router.push("/dashboard/settings");
+                    }
+                  }}
                   variant="outline"
                   className="w-full bg-white/5 hover:bg-white/10 text-white border-white/15 h-11 rounded-xl cursor-pointer text-xs font-mono"
                 >
@@ -266,7 +280,13 @@ function CheckoutSuccessContent() {
                   Retry Verification
                 </Button>
                 <Button
-                  onClick={() => router.push("/dashboard/settings")}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/dashboard/settings";
+                    } else {
+                      router.push("/dashboard/settings");
+                    }
+                  }}
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs h-10 rounded-xl"
                 >
                   Go to Settings

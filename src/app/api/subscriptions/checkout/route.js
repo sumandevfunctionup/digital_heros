@@ -49,6 +49,16 @@ export async function POST(request) {
       const charityPercent = user.charityContributionPercent || 10;
       const charityAmount = +( (plan === "yearly" ? 250 : 25) * (charityPercent / 100) ).toFixed(2);
 
+      let successUrl = `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
+      let cancelUrl = `${appUrl}/pricing?canceled=true`;
+
+      if (body.returnUrl) {
+        const cleanReturn = body.returnUrl.startsWith("/") ? body.returnUrl : `/${body.returnUrl}`;
+        const delimiter = cleanReturn.includes("?") ? "&" : "?";
+        successUrl = `${appUrl}${cleanReturn}${delimiter}session_id={CHECKOUT_SESSION_ID}&payment_status=success`;
+        cancelUrl = `${appUrl}${cleanReturn}${delimiter}canceled=true`;
+      }
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "subscription",
@@ -78,8 +88,8 @@ export async function POST(request) {
             quantity: 1,
           },
         ],
-        success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl}/pricing?canceled=true`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
       });
 
       return NextResponse.json({

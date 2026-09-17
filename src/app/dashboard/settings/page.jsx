@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -40,6 +40,72 @@ export default function SettingsDashboardPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
   const [targetPlan, setTargetPlan] = useState("monthly");
+
+  // Always reload this page upon returning from payment gateway redirection so user gets updated data
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePaymentReturn = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get("session_id");
+      const paymentStatus =
+        params.get("payment_status") ||
+        params.get("payment") ||
+        params.get("redirect_status");
+      const wasRedirected =
+        sessionStorage.getItem("payment_gateway_redirected") === "true";
+
+      if (sessionId || paymentStatus === "success" || paymentStatus === "succeeded" || wasRedirected) {
+        sessionStorage.removeItem("payment_gateway_redirected");
+
+        // If a Stripe session ID is present in query parameters, trigger server verification sync
+        if (sessionId) {
+          try {
+            await fetch(
+              `/api/subscriptions/verify-session?session_id=${encodeURIComponent(sessionId)}&sync=true`
+            );
+          } catch (e) {
+            console.error("Session verification error:", e);
+          }
+        }
+
+        toast.success("Payment confirmed! Reloading updated membership details...");
+        await refreshUser();
+
+        // Always reload page so the user receives fresh server & client state
+        if (sessionId || paymentStatus) {
+          // Replace URL to strip query parameters and force fresh load from server
+          window.location.replace(window.location.pathname);
+        } else {
+          window.location.reload();
+        }
+      }
+    };
+
+    handlePaymentReturn();
+
+    // Listen for tab focus/visibility when returning from an external payment gateway tab
+    const onVisibilityOrFocus = async () => {
+      if (sessionStorage.getItem("payment_gateway_redirected") === "true") {
+        sessionStorage.removeItem("payment_gateway_redirected");
+        await refreshUser();
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener("focus", onVisibilityOrFocus);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        onVisibilityOrFocus();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refreshUser]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -463,6 +529,9 @@ export default function SettingsDashboardPage() {
         user={user}
         onSuccess={async () => {
           await refreshUser();
+          if (typeof window !== "undefined") {
+            window.location.reload();
+          }
         }}
       />
     </div>

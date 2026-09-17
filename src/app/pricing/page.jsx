@@ -358,7 +358,11 @@ export default function PricingPage() {
         plan={checkoutPlan}
         user={user}
         onSuccess={() => {
-          router.push("/dashboard");
+          if (typeof window !== "undefined") {
+            window.location.href = "/dashboard/settings";
+          } else {
+            router.push("/dashboard/settings");
+          }
         }}
       />
     </div>

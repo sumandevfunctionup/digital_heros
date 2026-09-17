@@ -57,6 +57,11 @@ export default function StripePaymentModal({
     setRedirecting(true);
 
     try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("payment_gateway_redirected", "true");
+        sessionStorage.setItem("payment_gateway_return_url", window.location.pathname);
+      }
+
       const res = await fetch("/api/subscriptions/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,6 +69,7 @@ export default function StripePaymentModal({
           plan: selectedPlan,
           mode: "stripe",
           redirect: true,
+          returnUrl: typeof window !== "undefined" ? window.location.pathname : "/dashboard/settings",
         }),
       });
 
@@ -71,6 +77,9 @@ export default function StripePaymentModal({
 
       if (!res.ok || !data.success || !data.data?.checkoutUrl) {
         setRedirecting(false);
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("payment_gateway_redirected");
+        }
         setPaymentError(
           data.error?.message || "Failed to generate Stripe Checkout session."
         );
@@ -83,6 +92,9 @@ export default function StripePaymentModal({
       window.location.href = data.data.checkoutUrl;
     } catch (err) {
       setRedirecting(false);
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("payment_gateway_redirected");
+      }
       setPaymentError(err.message || "Network error redirecting to Stripe.");
       toast.error("Network error communicating with Stripe.");
     }
@@ -144,11 +156,15 @@ export default function StripePaymentModal({
   };
 
   const handleClose = () => {
+    const wasReceiptShown = Boolean(receiptData);
     setRedirecting(false);
     setIsSimulatingLocal(false);
     setReceiptData(null);
     setPaymentError(null);
     onClose();
+    if (wasReceiptShown && typeof window !== "undefined") {
+      window.location.reload();
+    }
   };
 
   return (
