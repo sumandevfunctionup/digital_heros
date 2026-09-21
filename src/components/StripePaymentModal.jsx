@@ -14,6 +14,7 @@ import {
   Copy,
   Check,
   Zap,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,7 +28,6 @@ export default function StripePaymentModal({
   onClose,
   plan = "monthly",
   user,
-  onSuccess,
 }) {
   const [selectedPlan, setSelectedPlan] = useState(plan);
   const [redirecting, setRedirecting] = useState(false);
@@ -59,7 +59,7 @@ export default function StripePaymentModal({
     try {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("payment_gateway_redirected", "true");
-        sessionStorage.setItem("payment_gateway_return_url", window.location.pathname);
+        sessionStorage.setItem("payment_gateway_return_url", "/dashboard/settings");
       }
 
       const res = await fetch("/api/subscriptions/checkout", {
@@ -69,7 +69,7 @@ export default function StripePaymentModal({
           plan: selectedPlan,
           mode: "stripe",
           redirect: true,
-          returnUrl: typeof window !== "undefined" ? window.location.pathname : "/dashboard/settings",
+          returnUrl: "/dashboard/settings",
         }),
       });
 
@@ -79,6 +79,7 @@ export default function StripePaymentModal({
         setRedirecting(false);
         if (typeof window !== "undefined") {
           sessionStorage.removeItem("payment_gateway_redirected");
+          sessionStorage.removeItem("payment_gateway_return_url");
         }
         setPaymentError(
           data.error?.message || "Failed to generate Stripe Checkout session."
@@ -94,6 +95,7 @@ export default function StripePaymentModal({
       setRedirecting(false);
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("payment_gateway_redirected");
+        sessionStorage.removeItem("payment_gateway_return_url");
       }
       setPaymentError(err.message || "Network error redirecting to Stripe.");
       toast.error("Network error communicating with Stripe.");
@@ -147,8 +149,23 @@ export default function StripePaymentModal({
         // Ignored
       }
 
-      toast.success(`Local Sandbox: ${selectedPlan.toUpperCase()} membership activated.`);
-      if (onSuccess) onSuccess(data.data);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("payment_gateway_redirected", "true");
+        sessionStorage.setItem("payment_gateway_return_url", "/dashboard/settings");
+      }
+
+      toast.success(`Membership activated! Returning to settings...`);
+
+      // Universal flow: Automatically return to settings and reload for latest data
+      setTimeout(() => {
+        if (typeof window !== "undefined") {
+          if (window.location.pathname === "/dashboard/settings") {
+            window.location.reload();
+          } else {
+            window.location.href = "/dashboard/settings";
+          }
+        }
+      }, 1800);
     } catch (err) {
       setIsSimulatingLocal(false);
       setPaymentError(err.message || "Network error in local activation.");
@@ -168,7 +185,7 @@ export default function StripePaymentModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !receiptData) handleClose(); }}>
       <DialogContent
         showCloseButton={false}
         className="w-[95vw] sm:max-w-[580px] md:max-w-[620px] bg-[#0B0D14] border border-white/10 text-white p-0 overflow-hidden shadow-2xl rounded-3xl"
@@ -189,14 +206,16 @@ export default function StripePaymentModal({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Close modal"
-            className="text-white/40 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          {!receiptData && (
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close modal"
+              className="text-white/40 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Stripe Test Mode Banner */}
@@ -230,14 +249,14 @@ export default function StripePaymentModal({
               </div>
             </div>
           ) : receiptData ? (
-            /* STATE 2: Offline/Local Instant Receipt (Fallback) */
-            <div className="py-4 text-center space-y-5">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+            /* STATE 2: Offline/Local Instant Receipt (Fallback) - Buttons removed and pointer-events-none so user cannot click anything */
+            <div className="py-4 text-center space-y-5 select-none pointer-events-none">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_25px_rgba(16,185,129,0.3)]">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <div>
                 <h3 className="text-2xl font-extrabold text-white">Membership Activated!</h3>
-                <p className="text-xs text-white/60">Local sandbox confirmation</p>
+                <p className="text-xs font-mono text-emerald-400 mt-1">Payment successfully confirmed</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#131622] border border-white/10 text-xs font-mono space-y-2 text-left">
@@ -255,12 +274,11 @@ export default function StripePaymentModal({
                 </div>
               </div>
 
-              <Button
-                onClick={handleClose}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold h-11 rounded-xl cursor-pointer"
-              >
-                Close & Return
-              </Button>
+              {/* Automated Redirect Status (No buttons so user cannot click anything) */}
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center gap-3 text-xs font-mono text-emerald-300 shadow-inner">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                <span>Payment confirmed! Returning to settings and reloading latest data...</span>
+              </div>
             </div>
           ) : (
             /* STATE 3: Plan Selector & Stripe Redirect Launchpad */

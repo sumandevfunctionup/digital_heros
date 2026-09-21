@@ -13,6 +13,7 @@ import {
   RefreshCw,
   AlertCircle,
   Radio,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -100,6 +101,24 @@ function CheckoutSuccessContent() {
     };
   }, [sessionId]);
 
+  // Universal flow: Automatically redirect to settings and reload for latest data
+  useEffect(() => {
+    if (status === "confirmed") {
+      const timer = setTimeout(() => {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("payment_gateway_redirected", "true");
+          sessionStorage.setItem("payment_gateway_return_url", "/dashboard/settings");
+          if (window.location.pathname === "/dashboard/settings") {
+            window.location.reload();
+          } else {
+            window.location.href = "/dashboard/settings";
+          }
+        }
+      }, 1800);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
   return (
     <div className="min-h-screen bg-[#08090C] text-white flex flex-col justify-center items-center px-4 py-16 selection:bg-amber-500/30">
       {/* Background Ambience */}
@@ -171,9 +190,9 @@ function CheckoutSuccessContent() {
             </div>
           )}
 
-          {/* STATE 2: Webhook Confirmed! */}
+          {/* STATE 2: Webhook Confirmed! (All buttons removed & pointer-events-none so user cannot click anything) */}
           {status === "confirmed" && data && (
-            <div className="space-y-6">
+            <div className="space-y-6 select-none pointer-events-none">
               <div className="text-center space-y-3 pt-2">
                 <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.25)]">
                   <CheckCircle2 className="w-9 h-9" />
@@ -222,37 +241,10 @@ function CheckoutSuccessContent() {
                 </div>
               </div>
 
-              {/* Next Steps CTA */}
-              <div className="space-y-3 pt-2">
-                <Button
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      sessionStorage.setItem("payment_gateway_redirected", "true");
-                      window.location.href = "/dashboard/scores";
-                    } else {
-                      router.push("/dashboard/scores");
-                    }
-                  }}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 transition-all text-sm"
-                >
-                  Enter Your 5-Score Ticket Now
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-
-                <Button
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      sessionStorage.setItem("payment_gateway_redirected", "true");
-                      window.location.href = "/dashboard/settings";
-                    } else {
-                      router.push("/dashboard/settings");
-                    }
-                  }}
-                  variant="outline"
-                  className="w-full bg-white/5 hover:bg-white/10 text-white border-white/15 h-11 rounded-xl cursor-pointer text-xs font-mono"
-                >
-                  View Membership Settings
-                </Button>
+              {/* Automated Redirect Status (Buttons removed so user cannot click anything) */}
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center gap-3 text-xs font-mono text-emerald-300 shadow-inner mt-4">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                <span>Payment confirmed! Returning to settings and reloading latest data...</span>
               </div>
             </div>
           )}

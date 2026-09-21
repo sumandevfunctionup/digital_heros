@@ -184,19 +184,43 @@ export default function RegisterPage() {
         throw new Error(regData.error?.message || "Registration failed");
       }
 
-      // 2. Activate subscription plan (instant local sandbox activation)
-      await fetch("/api/subscriptions/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${regData.data.token}`,
-        },
-        body: JSON.stringify({ plan }),
-      });
-
+      // 2. Refresh user state so session is active (subscriptionStatus will be 'none')
       await refreshUser();
-      toast.success("Welcome to digital.HEROES! Your account and subscription are active.");
-      router.push("/dashboard");
+      toast.success("Account created successfully! Opening payment gateway...");
+
+      // 3. Open Payment Gateway to purchase subscription using identical payment gateway flow
+      try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("payment_gateway_redirected", "true");
+          sessionStorage.setItem("payment_gateway_return_url", "/dashboard/settings");
+        }
+
+        const checkoutRes = await fetch("/api/subscriptions/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${regData.data.token}`,
+          },
+          body: JSON.stringify({
+            plan,
+            mode: "stripe",
+            redirect: true,
+            returnUrl: "/dashboard/settings",
+          }),
+        });
+
+        const checkoutData = await checkoutRes.json();
+        if (checkoutRes.ok && checkoutData.success && checkoutData.data?.checkoutUrl) {
+          toast.info("Redirecting to official Stripe Payment Gateway...");
+          window.location.href = checkoutData.data.checkoutUrl;
+          return;
+        }
+      } catch (checkoutErr) {
+        console.warn("[Register Checkout Redirection Notice]:", checkoutErr);
+      }
+
+      // Fallback: If not directly redirected to Stripe, enter dashboard with payment modal auto-opened
+      router.push(`/dashboard?subscribe=true&plan=${plan}`);
     } catch (err) {
       toast.error(err.message || "Failed to complete registration.");
     } finally {

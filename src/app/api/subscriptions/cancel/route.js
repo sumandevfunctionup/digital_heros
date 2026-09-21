@@ -28,12 +28,32 @@ export async function POST(request) {
       );
     }
 
-    // Set cancellation flag
+    // Cancel in Stripe if stripeSubscriptionId exists and real key is available
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (
+      user.stripeSubscriptionId &&
+      stripeKey &&
+      (stripeKey.startsWith("sk_test_") || stripeKey.startsWith("sk_live_")) &&
+      !stripeKey.includes("...")
+    ) {
+      try {
+        const Stripe = (await import("stripe")).default;
+        const stripe = new Stripe(stripeKey);
+        await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+      } catch (stripeErr) {
+        console.warn("[Stripe Cancel Warning]:", stripeErr.message);
+      }
+    }
+
+    // Clear subscription data and reset status to canceled
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       {
-        cancelAtPeriodEnd: true,
         subscriptionStatus: "canceled",
+        subscriptionPlan: null,
+        subscriptionRenewalDate: null,
+        cancelAtPeriodEnd: false,
+        stripeSubscriptionId: null,
       },
       { new: true }
     ).select("-password");
@@ -42,7 +62,7 @@ export async function POST(request) {
       success: true,
       data: {
         user: updatedUser,
-        message: "Your subscription has been scheduled for cancellation at the end of the current billing cycle.",
+        message: "Your subscription has been cancelled and membership details have been removed.",
       },
     });
   } catch (error) {

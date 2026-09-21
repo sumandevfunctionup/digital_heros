@@ -172,6 +172,22 @@ async function seed() {
     homeClub: "Holywood Golf Club",
   });
 
+  // Dedicated Unsubscribed Golfer (to test first-time login payment gateway prompt)
+  const unsubscribedGolfer = await User.create({
+    email: "newgolfer@digitalheroes.co.in",
+    passwordHash: playerPasswordHash,
+    firstName: "Sam",
+    lastName: "Burns",
+    role: "user",
+    subscriptionStatus: "none",
+    subscriptionPlan: null,
+    subscriptionRenewalDate: null,
+    selectedCharityId: charities[0]._id,
+    charityContributionPercent: 10,
+    handicapIndex: 8.5,
+    homeClub: "Shreveport Country Club",
+  });
+
   console.log(" Seeding rolling 5-score histories (Stableford 1-45, distinct dates)...");
   // Helper to construct normalized UTC dates
   const daysAgo = (days) => {

@@ -17,13 +17,18 @@ import {
   ChevronRight,
   ShieldCheck,
   Dices,
+  CreditCard,
 } from "lucide-react";
 import { APP_VERSION } from "@/lib/version";
+import StripePaymentModal from "@/components/StripePaymentModal";
 
 export default function DashboardLayout({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const [isStripeModalOpen, setIsStripeModalOpen] = useState(false);
+  const [stripePlan, setStripePlan] = useState("monthly");
 
   const navRef = useRef(null);
   const navContainerRef = useRef(null);
@@ -96,6 +101,30 @@ export default function DashboardLayout({ children }) {
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [user, loading, router, pathname]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const isSub = user?.subscriptionStatus === "active" || user?.subscriptionStatus === "trialing";
+      if ((params.get("subscribe") === "true" || params.get("openPayment") === "true") && !isSub && user?.role !== "admin") {
+        const planParam = params.get("plan");
+        if (planParam === "yearly" || planParam === "monthly") {
+          setStripePlan(planParam);
+        }
+        setIsStripeModalOpen(true);
+      }
+
+      const handleOpenModal = (e) => {
+        if (e.detail?.plan) {
+          setStripePlan(e.detail.plan);
+        }
+        setIsStripeModalOpen(true);
+      };
+
+      window.addEventListener("open-stripe-modal", handleOpenModal);
+      return () => window.removeEventListener("open-stripe-modal", handleOpenModal);
+    }
+  }, [pathname, user]);
 
   if (loading) {
     return (
@@ -254,6 +283,18 @@ export default function DashboardLayout({ children }) {
                   ({user.charityContributionPercent || 10}%)
                 </span>
               </div>
+
+              {/* Unsubscribed Call to Action Button */}
+              {!isSubscribed && user.role !== "admin" && (
+                <button
+                  type="button"
+                  onClick={() => setIsStripeModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-500/50 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-bold text-xs shadow-[0_0_15px_rgba(16,185,129,0.35)] transition-all cursor-pointer animate-pulse"
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Activate Membership</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -337,6 +378,14 @@ export default function DashboardLayout({ children }) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+
+      {/* Interactive Stripe Payment Gateway Modal */}
+      <StripePaymentModal
+        isOpen={isStripeModalOpen}
+        onClose={() => setIsStripeModalOpen(false)}
+        plan={stripePlan}
+        user={user}
+      />
     </div>
   );
 }

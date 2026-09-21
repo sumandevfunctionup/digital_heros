@@ -158,9 +158,12 @@ export default function SettingsDashboardPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(data.data?.message || "Subscription scheduled for cancellation.");
+        toast.success(data.data?.message || "Subscription cancelled. Membership details removed.");
         setShowCancelDialog(false);
         await refreshUser();
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
       } else {
         toast.error(data.error?.message || "Failed to cancel subscription.");
       }
@@ -266,26 +269,38 @@ export default function SettingsDashboardPage() {
               <div className="p-4 rounded-2xl bg-[#121520] border border-white/10 space-y-3 mb-6 text-xs">
                 <div className="flex justify-between items-center">
                   <span className="text-white/40 font-mono">Current Plan</span>
-                  <span className="font-bold text-white capitalize font-mono">
-                    {user?.subscriptionPlan || "None"}
+                  <span
+                    className={`font-bold capitalize font-mono ${
+                      isSubscribed && user?.subscriptionPlan ? "text-white" : "text-white/40"
+                    }`}
+                  >
+                    {isSubscribed && user?.subscriptionPlan ? user.subscriptionPlan : "None"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-white/40 font-mono">Next Renewal</span>
-                  <span className="text-white font-mono">
-                    {user?.subscriptionRenewalDate
+                  <span
+                    className={`font-mono ${
+                      isSubscribed && user?.subscriptionRenewalDate ? "text-white" : "text-white/40"
+                    }`}
+                  >
+                    {isSubscribed && user?.subscriptionRenewalDate
                       ? new Date(user.subscriptionRenewalDate).toLocaleDateString("en-US", {
                           month: "long",
                           day: "numeric",
                           year: "numeric",
                         })
-                      : "Not scheduled"}
+                      : "None"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-white/40 font-mono">Charity Contribution</span>
-                  <span className="text-emerald-400 font-bold font-mono">
-                    {user?.charityContributionPercent || 10}%
+                  <span
+                    className={`font-bold font-mono ${
+                      isSubscribed ? "text-emerald-400" : "text-white/40"
+                    }`}
+                  >
+                    {isSubscribed ? `${user?.charityContributionPercent || 10}%` : "None"}
                   </span>
                 </div>
               </div>
@@ -407,20 +422,13 @@ export default function SettingsDashboardPage() {
               <DialogDescription className="text-xs text-white/60 pt-2 leading-relaxed">
                 Are you sure you want to cancel your subscription?
                 <br /><br />
-                • You will continue to have full access and participate in monthly draws until{" "}
-                <strong className="text-white">
-                  {user?.subscriptionRenewalDate
-                    ? new Date(user.subscriptionRenewalDate).toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : "the end of your current cycle"}
-                </strong>.
+                • Your membership and recurring billing will be cancelled immediately.
+                <br />
+                • Plan details and renewal dates will be removed from your profile.
                 <br />
                 • Your 5 active scores will remain securely saved in your profile.
                 <br />
-                • You can reactivate at any time without losing historical data.
+                • You can reactivate at any time by selecting a plan.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-white/10">
@@ -536,12 +544,6 @@ export default function SettingsDashboardPage() {
         onClose={() => setStripeModalOpen(false)}
         plan={targetPlan}
         user={user}
-        onSuccess={async () => {
-          await refreshUser();
-          if (typeof window !== "undefined") {
-            window.location.reload();
-          }
-        }}
       />
     </div>
   );

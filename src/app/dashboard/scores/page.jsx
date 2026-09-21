@@ -563,14 +563,21 @@ export default function ScoresDashboardPage() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/dashboard/settings"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 shrink-0"
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(
+                    new CustomEvent("open-stripe-modal", { detail: { plan: "monthly" } })
+                  );
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-bold text-xs transition-all shadow-md shadow-emerald-500/20 shrink-0 cursor-pointer"
             >
               <CreditCard className="w-3.5 h-3.5" />
-              Activate Plan ($25/mo)
+              <span>Open Payment Gateway ($25/mo)</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            </button>
           </div>
         )}
 
@@ -729,32 +736,42 @@ export default function ScoresDashboardPage() {
               </span>
             </div>
 
-            <Button
-              type="submit"
-              disabled={!hasActivePlan || submitting || !!duplicateScore}
-              className={`font-semibold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 ${
-                !hasActivePlan
-                  ? "bg-white/10 text-white/40 cursor-not-allowed border border-white/10 shadow-none"
-                  : duplicateScore
-                  ? "bg-amber-500/40 text-amber-950 cursor-not-allowed"
-                  : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20"
-              }`}
-            >
-              {!hasActivePlan ? (
-                <>
-                  <Lock className="w-3.5 h-3.5 text-white/40" />
-                  Active Plan Required to Submit
-                </>
-              ) : submitting ? (
-                "Recording & Rolling..."
-              ) : duplicateScore ? (
-                "Date Taken — Choose Another"
-              ) : activeScores.length >= 5 ? (
-                "Record Round & Roll FIFO"
-              ) : (
-                "Submit Round"
-              )}
-            </Button>
+            {!hasActivePlan ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(
+                      new CustomEvent("open-stripe-modal", { detail: { plan: "monthly" } })
+                    );
+                  }
+                }}
+                className="font-bold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black cursor-pointer shadow-emerald-500/20"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Open Payment Gateway to Enable</span>
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={submitting || !!duplicateScore}
+                className={`font-semibold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 ${
+                  duplicateScore
+                    ? "bg-amber-500/40 text-amber-950 cursor-not-allowed"
+                    : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20"
+                }`}
+              >
+                {submitting ? (
+                  "Recording & Rolling..."
+                ) : duplicateScore ? (
+                  "Date Taken — Choose Another"
+                ) : activeScores.length >= 5 ? (
+                  "Record Round & Roll FIFO"
+                ) : (
+                  "Submit Round"
+                )}
+              </Button>
+            )}
           </div>
         </form>
       </div>

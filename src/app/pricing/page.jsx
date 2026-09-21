@@ -357,13 +357,6 @@ export default function PricingPage() {
         onClose={() => setIsStripeModalOpen(false)}
         plan={checkoutPlan}
         user={user}
-        onSuccess={() => {
-          if (typeof window !== "undefined") {
-            window.location.href = "/dashboard/settings";
-          } else {
-            router.push("/dashboard/settings");
-          }
-        }}
       />
     </div>
   );

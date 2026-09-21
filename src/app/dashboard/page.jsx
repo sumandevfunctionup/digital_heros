@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Clock,
   Coins,
+  CreditCard,
 } from "lucide-react";
 import DirectDonationModal from "@/components/DirectDonationModal";
 import { DashboardOverviewSkeleton } from "@/components/ui/SkeletonLoaders";
@@ -162,13 +163,21 @@ export default function DashboardOverviewPage() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/dashboard/settings"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-black font-semibold text-xs hover:brightness-110 transition-all shadow-md whitespace-nowrap"
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(
+                    new CustomEvent("open-stripe-modal", { detail: { plan: "monthly" } })
+                  );
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-bold text-xs hover:brightness-110 transition-all shadow-lg shadow-emerald-500/25 whitespace-nowrap cursor-pointer"
             >
-              Activate Membership ($25/mo)
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Open Payment Gateway ($25/mo)</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            </button>
           </div>
         </div>
       ) : null}

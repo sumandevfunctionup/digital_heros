@@ -25,10 +25,19 @@ export default function LoginPage() {
     try {
       const data = await login(email, password);
       toast.success("Welcome back to digital.HEROES!");
-      if (data.data?.user?.role === "admin") {
+      const loggedUser = data.data?.user;
+      if (loggedUser?.role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/dashboard");
+        const isSubscribed =
+          loggedUser?.subscriptionStatus === "active" ||
+          loggedUser?.subscriptionStatus === "trialing";
+        if (!isSubscribed) {
+          toast.info("Please complete your subscription to activate your account.");
+          router.push("/dashboard?subscribe=true");
+        } else {
+          router.push("/dashboard");
+        }
       }
     } catch (err) {
       toast.error(err.message || "Failed to sign in. Please verify your credentials.");
@@ -128,7 +137,7 @@ export default function LoginPage() {
               <Sparkles className="h-3.5 w-3.5" />
               1-Click Demo Evaluation Accounts
             </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => quickFill("subscriber@digitalheroes.co.in", "Player1234!")}
@@ -138,7 +147,19 @@ export default function LoginPage() {
                   <User className="h-3 w-3 text-amber-400" />
                   Subscriber
                 </div>
-                <div className="text-[10px] text-slate-400 truncate">5 Scores · Prize Winner</div>
+                <div className="text-[10px] text-slate-400 truncate">5 Scores · Active</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => quickFill("newgolfer@digitalheroes.co.in", "Player1234!")}
+                className="rounded-lg border border-white/10 bg-white/5 p-2 text-left hover:border-cyan-400/40 hover:bg-white/10 transition"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                  <User className="h-3 w-3 text-cyan-400" />
+                  New Golfer
+                </div>
+                <div className="text-[10px] text-cyan-300/80 truncate">Unsubscribed · Test Gateway</div>
               </button>
 
               <button

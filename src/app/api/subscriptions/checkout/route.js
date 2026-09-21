@@ -41,23 +41,19 @@ export async function POST(request) {
       (stripeKey.startsWith("sk_test_") || stripeKey.startsWith("sk_live_")) &&
       !stripeKey.includes("...");
 
-    // Real Stripe Hosted Checkout when requested or in stripe mode
-    if (hasRealStripeKey && (body.mode === "stripe" || body.mode === "hosted" || body.redirect === true)) {
+    // Real Stripe Hosted Checkout when STRIPE_SECRET_KEY is configured and mode is not explicitly 'sandbox'
+    if (hasRealStripeKey && body.mode !== "sandbox") {
       const stripe = new Stripe(stripeKey);
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const unitAmount = plan === "yearly" ? 25000 : 2500;
       const charityPercent = user.charityContributionPercent || 10;
       const charityAmount = +( (plan === "yearly" ? 250 : 25) * (charityPercent / 100) ).toFixed(2);
 
-      let successUrl = `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
-      let cancelUrl = `${appUrl}/pricing?canceled=true`;
-
-      if (body.returnUrl) {
-        const cleanReturn = body.returnUrl.startsWith("/") ? body.returnUrl : `/${body.returnUrl}`;
-        const delimiter = cleanReturn.includes("?") ? "&" : "?";
-        successUrl = `${appUrl}${cleanReturn}${delimiter}session_id={CHECKOUT_SESSION_ID}&payment_status=success`;
-        cancelUrl = `${appUrl}${cleanReturn}${delimiter}canceled=true`;
-      }
+      // ALWAYS use the unified checkout success path returning to /dashboard/settings
+      const returnPath = body.returnUrl || "/dashboard/settings";
+      const cleanReturn = returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
+      const successUrl = `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&returnUrl=${encodeURIComponent(cleanReturn)}`;
+      const cancelUrl = `${appUrl}${cleanReturn}${cleanReturn.includes("?") ? "&" : "?"}canceled=true`;
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
@@ -70,7 +66,7 @@ export async function POST(request) {
           plan,
           charityPercent: charityPercent.toString(),
           charityAmount: charityAmount.toString(),
-          charityId: user.favoriteCharityId ? user.favoriteCharityId.toString() : "",
+          charityId: user.selectedCharityId ? user.selectedCharityId.toString() : "",
         },
         line_items: [
           {
@@ -102,6 +98,20 @@ export async function POST(request) {
       });
     }
 
+    // Only allow instant activation if mode is explicitly 'sandbox' or 'instant'
+    if (body.mode !== "sandbox" && body.mode !== "instant") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PAYMENT_GATEWAY_REQUIRED",
+            message: "Payment processing via Stripe Payment Gateway is required to activate a membership.",
+          },
+        },
+        { status: 402 }
+      );
+    }
+
     // In local evaluation or sandbox mode, we activate the subscription immediately
     const now = new Date();
     const renewalDate = new Date(now);
@@ -122,6 +132,31 @@ export async function POST(request) {
       },
       { new: true }
     );
+
+    // Record sandbox payment in ledger if Payment model exists
+    try {
+      const Payment = (await import("@/models/Payment")).default;
+      const amount = plan === "yearly" ? 250 : 25;
+      const charityPercent = updatedUser.charityContributionPercent || 10;
+      const charityAmount = +(amount * (charityPercent / 100)).toFixed(2);
+      await Payment.create({
+        userId: updatedUser._id,
+        amount,
+        currency: "USD",
+        plan,
+        charityAmount,
+        charityContributionPercent: charityPercent,
+        charityId: updatedUser.selectedCharityId || null,
+        status: "succeeded",
+        stripePaymentIntentId: body.stripePaymentIntentId || `pi_sandbox_${Date.now()}`,
+        stripeCustomerId: updatedUser.stripeCustomerId,
+        paymentMethod: "sandbox_card",
+        cardLast4: body.cardLast4 || "4242",
+        cardBrand: body.cardBrand || "Visa",
+      });
+    } catch (payErr) {
+      console.warn("[Sandbox Payment Ledger Warning]:", payErr.message);
+    }
 
     return NextResponse.json({
       success: true,
