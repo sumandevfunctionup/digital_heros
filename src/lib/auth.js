@@ -163,7 +163,8 @@ export async function requireActiveSubscriber(request) {
   }
 
   const isActive =
-    user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing";
+    (user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing") &&
+    Boolean(user.subscriptionPlan);
 
   if (!isActive) {
     return {
@@ -174,8 +175,9 @@ export async function requireActiveSubscriber(request) {
           error: {
             code: "SUBSCRIPTION_REQUIRED",
             message:
-              "Active subscription required to access this feature. Please subscribe to a monthly or yearly plan.",
+              "An active subscription plan is required to perform this action. Please subscribe to a monthly or yearly plan.",
             subscriptionStatus: user.subscriptionStatus,
+            subscriptionPlan: user.subscriptionPlan,
           },
         },
         { status: 403 }

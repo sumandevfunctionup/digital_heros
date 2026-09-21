@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Score from "@/models/Score";
 import User from "@/models/User";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireActiveSubscriber } from "@/lib/auth";
 import { scoreUpdateSchema, formatZodError } from "@/lib/validators";
 
 /**
@@ -12,7 +12,7 @@ import { scoreUpdateSchema, formatZodError } from "@/lib/validators";
 export async function PATCH(request, context) {
   try {
     await connectDB();
-    const { user, errorResponse } = await requireAuth(request);
+    const { user, errorResponse } = await requireActiveSubscriber(request);
     if (errorResponse) return errorResponse;
 
     const { id } = await context.params;
@@ -121,7 +121,7 @@ export async function PATCH(request, context) {
 export async function DELETE(request, context) {
   try {
     await connectDB();
-    const { user, errorResponse } = await requireAuth(request);
+    const { user, errorResponse } = await requireActiveSubscriber(request);
     if (errorResponse) return errorResponse;
 
     const { id } = await context.params;

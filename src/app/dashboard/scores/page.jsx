@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
@@ -14,6 +15,9 @@ import {
   ShieldCheck,
   RefreshCw,
   CalendarCheck,
+  Lock,
+  ArrowRight,
+  CreditCard,
 } from "lucide-react";
 import {
   Dialog,
@@ -65,7 +69,16 @@ function getSuggestedNextDate(scoresList) {
 }
 
 export default function ScoresDashboardPage() {
-  const { refreshUser } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
+
+  const hasActivePlan = useMemo(() => {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+    return (
+      (user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing") &&
+      Boolean(user.subscriptionPlan)
+    );
+  }, [user]);
   const [scoresData, setScoresData] = useState({
     scores: [],
     archivedScores: [],
@@ -175,6 +188,11 @@ export default function ScoresDashboardPage() {
   const handleSubmitScore = async (e) => {
     e.preventDefault();
 
+    if (!hasActivePlan) {
+      toast.error("Active membership required. Please activate your subscription plan to record scores.");
+      return;
+    }
+
     if (duplicateScore) {
       toast.error(`A round is already recorded for ${formData.date}. Select a distinct date.`);
       return;
@@ -206,7 +224,15 @@ export default function ScoresDashboardPage() {
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        toast.error(json.error?.message || "Failed to submit score");
+        if (res.status === 403 || json.error?.code === "SUBSCRIPTION_REQUIRED") {
+          toast.error(
+            json.error?.message ||
+              "Active subscription plan required to record scores. Please activate your plan."
+          );
+          await refreshUser();
+        } else {
+          toast.error(json.error?.message || "Failed to submit score");
+        }
         return;
       }
 
@@ -241,6 +267,11 @@ export default function ScoresDashboardPage() {
     e.preventDefault();
     if (!editingScore) return;
 
+    if (!hasActivePlan) {
+      toast.error("Active subscription plan required to edit scores.");
+      return;
+    }
+
     const scoreVal = parseInt(editFormData.score, 10);
     if (isNaN(scoreVal) || scoreVal < 1 || scoreVal > 45) {
       toast.error("Stableford score must be an integer between 1 and 45.");
@@ -260,7 +291,12 @@ export default function ScoresDashboardPage() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        toast.error(json.error?.message || "Failed to update score");
+        if (res.status === 403 || json.error?.code === "SUBSCRIPTION_REQUIRED") {
+          toast.error(json.error?.message || "Active subscription required to edit scores.");
+          await refreshUser();
+        } else {
+          toast.error(json.error?.message || "Failed to update score");
+        }
         return;
       }
 
@@ -276,6 +312,11 @@ export default function ScoresDashboardPage() {
   };
 
   const handleDeleteScore = async (scoreId) => {
+    if (!hasActivePlan) {
+      toast.error("Active subscription plan required to delete scores.");
+      return;
+    }
+
     if (
       !confirm(
         "Are you sure you want to delete this round? If it is active, your latest archived score will automatically be restored into the draw ticket."
@@ -292,7 +333,12 @@ export default function ScoresDashboardPage() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        toast.error(json.error?.message || "Failed to delete score");
+        if (res.status === 403 || json.error?.code === "SUBSCRIPTION_REQUIRED") {
+          toast.error(json.error?.message || "Active subscription required to delete scores.");
+          await refreshUser();
+        } else {
+          toast.error(json.error?.message || "Failed to delete score");
+        }
         return;
       }
 
@@ -416,19 +462,37 @@ export default function ScoresDashboardPage() {
                     <div className="mt-3 flex items-center justify-end gap-2 pt-2 border-t border-white/5">
                       <button
                         onClick={() => {
+                          if (!hasActivePlan) {
+                            toast.error("Active subscription plan required to edit scores.");
+                            return;
+                          }
                           setEditingScore(score);
                           setEditFormData({ score: score.score, courseName: score.courseName || "" });
                         }}
-                        className="p-1 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                        title="Edit score"
+                        className={`p-1 rounded-md transition-colors ${
+                          !hasActivePlan
+                            ? "text-white/20 cursor-not-allowed"
+                            : "text-white/40 hover:text-white hover:bg-white/10"
+                        }`}
+                        title={!hasActivePlan ? "Active subscription plan required" : "Edit score"}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => handleDeleteScore(score._id)}
-                        disabled={deletingId === score._id}
-                        className="p-1 rounded-md text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Delete score"
+                        onClick={() => {
+                          if (!hasActivePlan) {
+                            toast.error("Active subscription plan required to delete scores.");
+                            return;
+                          }
+                          handleDeleteScore(score._id);
+                        }}
+                        disabled={deletingId === score._id || !hasActivePlan}
+                        className={`p-1 rounded-md transition-colors ${
+                          !hasActivePlan
+                            ? "text-rose-400/20 cursor-not-allowed"
+                            : "text-rose-400/50 hover:text-rose-400 hover:bg-rose-500/10"
+                        }`}
+                        title={!hasActivePlan ? "Active subscription plan required" : "Delete score"}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -437,10 +501,16 @@ export default function ScoresDashboardPage() {
                 ) : (
                   <div className="py-6 flex flex-col items-center justify-center text-center">
                     <div className="w-8 h-8 rounded-lg bg-white/5 border border-dashed border-white/20 flex items-center justify-center text-white/30 mb-2">
-                      <PlusCircle className="w-4 h-4" />
+                      {!hasActivePlan && !authLoading ? (
+                        <Lock className="w-4 h-4 text-amber-400/60" />
+                      ) : (
+                        <PlusCircle className="w-4 h-4" />
+                      )}
                     </div>
                     <span className="text-xs text-white/40 font-mono">Empty Slot</span>
-                    <span className="text-[10px] text-white/25 mt-0.5">Add round below</span>
+                    <span className="text-[10px] text-white/25 mt-0.5">
+                      {!hasActivePlan && !authLoading ? "Active plan required" : "Add round below"}
+                    </span>
                   </div>
                 )}
               </div>
@@ -471,16 +541,54 @@ export default function ScoresDashboardPage() {
       </div>
 
       {/* 2. Score Submission Form */}
-      <div className="rounded-3xl border border-white/10 bg-[#0F1118]/80 p-6 sm:p-8 backdrop-blur-xl relative">
+      <div className={`rounded-3xl border ${!hasActivePlan && !authLoading ? "border-rose-500/30 bg-[#0F1118]/90 shadow-[0_0_50px_rgba(244,63,94,0.05)]" : "border-white/10 bg-[#0F1118]/80"} p-6 sm:p-8 backdrop-blur-xl relative transition-all`}>
+        {/* Inactive Plan Lockout Callout */}
+        {!hasActivePlan && !authLoading && (
+          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-500/15 via-amber-500/10 to-transparent border border-rose-500/30 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 mt-0.5 sm:mt-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  Active Plan Required to Record Scores
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    {user?.subscriptionStatus && user.subscriptionStatus !== "none"
+                      ? `${user.subscriptionStatus} plan`
+                      : "No Active Plan"}
+                  </span>
+                </h4>
+                <p className="text-xs text-white/60 mt-0.5">
+                  You must have an active digital.HEROES plan (Monthly $25/mo or Annual $250/yr) to log official rounds, maintain your 5-slot draw ticket, and participate in monthly jackpot draws.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/settings"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 shrink-0"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              Activate Plan ($25/mo)
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <PlusCircle className="w-5 h-5" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              !hasActivePlan && !authLoading
+                ? "bg-rose-500/10 border border-rose-500/30 text-rose-400"
+                : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+            }`}>
+              {!hasActivePlan && !authLoading ? <Lock className="w-5 h-5" /> : <PlusCircle className="w-5 h-5" />}
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">Record Official Stableford Round</h3>
               <p className="text-xs text-white/50">
-                PRD § 05 Rule: Exactly one score entry per calendar date is permitted.
+                {!hasActivePlan && !authLoading
+                  ? "Membership required to submit scores to the draw engine."
+                  : "PRD § 05 Rule: Exactly one score entry per calendar date is permitted."}
               </p>
             </div>
           </div>
@@ -491,9 +599,14 @@ export default function ScoresDashboardPage() {
               <span className="text-white/40">Suggested Date:</span>
               <button
                 type="button"
+                disabled={!hasActivePlan}
                 onClick={() => setFormData({ ...formData, date: suggestedNextDate })}
-                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-400 font-mono text-[11px] transition-colors flex items-center gap-1.5"
-                title="Click to apply next available date without conflict"
+                className={`px-2.5 py-1 rounded-lg border font-mono text-[11px] transition-colors flex items-center gap-1.5 ${
+                  !hasActivePlan
+                    ? "bg-white/5 border-white/5 text-white/30 cursor-not-allowed"
+                    : "bg-white/5 border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-400 cursor-pointer"
+                }`}
+                title={!hasActivePlan ? "Active plan required" : "Click to apply next available date without conflict"}
               >
                 <CalendarCheck className="w-3.5 h-3.5" />
                 {suggestedNextDate}
@@ -514,10 +627,15 @@ export default function ScoresDashboardPage() {
                 min="1"
                 max="45"
                 required
-                placeholder="e.g. 38"
+                disabled={!hasActivePlan || submitting}
+                placeholder={!hasActivePlan ? "Plan required" : "e.g. 38"}
                 value={formData.score}
                 onChange={(e) => setFormData({ ...formData, score: e.target.value })}
-                className="bg-[#121520] border-white/15 text-white font-mono text-lg focus:border-emerald-500"
+                className={`bg-[#121520] font-mono text-lg ${
+                  !hasActivePlan
+                    ? "opacity-50 cursor-not-allowed border-white/10"
+                    : "border-white/15 text-white focus:border-emerald-500"
+                }`}
               />
               <span className="text-[10px] text-white/40 mt-1 block">Valid range: 1 to 45 pts</span>
             </div>
@@ -530,10 +648,13 @@ export default function ScoresDashboardPage() {
               <Input
                 type="date"
                 required
+                disabled={!hasActivePlan || submitting}
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 className={`bg-[#121520] font-mono text-white ${
-                  duplicateScore
+                  !hasActivePlan
+                    ? "opacity-50 cursor-not-allowed border-white/10"
+                    : duplicateScore
                     ? "border-amber-500/60 focus:border-amber-400"
                     : "border-white/15 focus:border-emerald-500"
                 }`}
@@ -548,17 +669,22 @@ export default function ScoresDashboardPage() {
               </label>
               <Input
                 type="text"
-                placeholder="e.g. Augusta National"
+                disabled={!hasActivePlan || submitting}
+                placeholder={!hasActivePlan ? "Plan required" : "e.g. Augusta National"}
                 value={formData.courseName}
                 onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
-                className="bg-[#121520] border-white/15 text-white focus:border-emerald-500"
+                className={`bg-[#121520] ${
+                  !hasActivePlan
+                    ? "opacity-50 cursor-not-allowed border-white/10"
+                    : "border-white/15 text-white focus:border-emerald-500"
+                }`}
               />
               <span className="text-[10px] text-white/40 mt-1 block">Optional course label</span>
             </div>
           </div>
 
           {/* Real-time duplicate date conflict banner */}
-          {duplicateScore && (
+          {duplicateScore && hasActivePlan && (
             <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-3 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
               <div className="space-y-1.5">
@@ -595,7 +721,9 @@ export default function ScoresDashboardPage() {
             <div className="flex items-center gap-2 text-xs text-white/40">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>
-                {activeScores.length >= 5
+                {!hasActivePlan
+                  ? "Active digital.HEROES plan required to log scores and enter draws"
+                  : activeScores.length >= 5
                   ? "Adding this round will automatically roll your oldest active score into archive."
                   : "Verified against duplicate dates & Stableford rules"}
               </span>
@@ -603,20 +731,29 @@ export default function ScoresDashboardPage() {
 
             <Button
               type="submit"
-              disabled={submitting || !!duplicateScore}
-              className={`text-black font-semibold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md ${
-                duplicateScore
+              disabled={!hasActivePlan || submitting || !!duplicateScore}
+              className={`font-semibold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 ${
+                !hasActivePlan
+                  ? "bg-white/10 text-white/40 cursor-not-allowed border border-white/10 shadow-none"
+                  : duplicateScore
                   ? "bg-amber-500/40 text-amber-950 cursor-not-allowed"
-                  : "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20"
+                  : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20"
               }`}
             >
-              {submitting
-                ? "Recording & Rolling..."
-                : duplicateScore
-                ? "Date Taken — Choose Another"
-                : activeScores.length >= 5
-                ? "Record Round & Roll FIFO"
-                : "Submit Round"}
+              {!hasActivePlan ? (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-white/40" />
+                  Active Plan Required to Submit
+                </>
+              ) : submitting ? (
+                "Recording & Rolling..."
+              ) : duplicateScore ? (
+                "Date Taken — Choose Another"
+              ) : activeScores.length >= 5 ? (
+                "Record Round & Roll FIFO"
+              ) : (
+                "Submit Round"
+              )}
             </Button>
           </div>
         </form>
@@ -765,17 +902,37 @@ export default function ScoresDashboardPage() {
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => {
+                              if (!hasActivePlan) {
+                                toast.error("Active subscription plan required to edit scores.");
+                                return;
+                              }
                               setEditingScore(score);
                               setEditFormData({ score: score.score, courseName: score.courseName || "" });
                             }}
-                            className="px-2 py-1 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                            className={`px-2 py-1 rounded transition-colors ${
+                              !hasActivePlan
+                                ? "text-white/20 cursor-not-allowed"
+                                : "text-white/50 hover:text-white hover:bg-white/10"
+                            }`}
+                            title={!hasActivePlan ? "Active subscription plan required" : "Edit score"}
                           >
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDeleteScore(score._id)}
-                            disabled={deletingId === score._id}
-                            className="px-2 py-1 rounded text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            onClick={() => {
+                              if (!hasActivePlan) {
+                                toast.error("Active subscription plan required to delete scores.");
+                                return;
+                              }
+                              handleDeleteScore(score._id);
+                            }}
+                            disabled={deletingId === score._id || !hasActivePlan}
+                            className={`px-2 py-1 rounded transition-colors ${
+                              !hasActivePlan
+                                ? "text-rose-400/20 cursor-not-allowed"
+                                : "text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10"
+                            }`}
+                            title={!hasActivePlan ? "Active subscription plan required" : "Delete score"}
                           >
                             Delete
                           </button>
